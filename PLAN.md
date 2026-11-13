@@ -134,9 +134,28 @@ Phase 3 notes:
 - Real games were tried in the browser by hand on 2026-11-13 and load and play.
 
 ### 4. Sound
-- [ ] Record beeper level changes against T-state timestamps during a frame, then resample to 44.1/48 kHz
-- [ ] AudioWorklet with a small ring buffer. Use the audio clock as the master timer so sound doesn't crackle
-- [ ] Mute toggle, and resume the AudioContext on first user gesture (browser autoplay rule)
+- [x] Record beeper level changes against T-state timestamps during a frame, then resample to 44.1/48 kHz
+- [x] AudioWorklet with a small ring buffer. Use the audio clock as the master timer so sound doesn't crackle
+- [x] Mute toggle, and resume the AudioContext on first user gesture (browser autoplay rule)
+
+Phase 4 notes:
+- `src/zxem/zxsound.c` turns each EAR/MIC change on port `0xFE` into samples at the
+  AudioContext's rate. Each sample averages the speaker level over its slice of time,
+  and a 10 Hz DC blocker centres the wave. MIC is mixed in quietly.
+- `web/beeper.js` is the AudioWorklet. It waits for 60 ms of samples before playing,
+  fades out if it runs dry, and drops the oldest samples past 250 ms.
+- Sound starts on the first click or key press. While it plays, frames are timed from
+  `AudioContext.currentTime`, so emulation and audio can't drift. With sound off, the
+  page goes back to `performance.now()`. The Sound on/off choice is kept in `localStorage`.
+- CPU timing fixes found while testing pitch:
+  - z80core didn't count the 4 T-states of an I/O cycle, so every IN and OUT was short.
+  - The interrupt's T-states weren't counted towards the frame, so the emulator ran 0.03% fast.
+  - z80core bugs: `OUT (C),D` sent C, `IN E,(C)` loaded D, and `IN r,(C)` set no flags.
+- `tests/web/sound.cjs` checks sample count, the pitch of a known square wave, and that
+  the ROM's `BEEP 1,0` plays middle C (261.6 Hz).
+- Checked in headless Chromium: audio starts on a key press, 48000 samples a second
+  reach the worklet, and muting suspends the AudioContext. Listening on real speakers is
+  still a manual check.
 
 ### 5. Website
 - [ ] Landing page with a game library from `games/manifest.json` (title, author, cover, file, controls)

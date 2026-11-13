@@ -218,6 +218,7 @@ protected:
 	void					And(unsigned char &r);
 	void					Or(unsigned char &r);
 	void					Xor(unsigned char &r);
+	void					InFlags(unsigned char &r);
 	void					Cp(unsigned char &r);
 	void					RLC(unsigned char &r);
 	void					RRC(unsigned char &r);

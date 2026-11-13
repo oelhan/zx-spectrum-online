@@ -40,11 +40,12 @@ The browser version builds with Emscripten into `dist/` (no SDL):
 make docker-web       # build in the emscripten/emsdk Docker image (no local emsdk needed)
 make PLAT=WEB         # or build with a local emcc
 make serve            # http://localhost:8000
-make test-web         # boot, I/O and loader tests in Node
+make test-web         # boot, I/O, loader and sound tests in Node
 ```
 
 On the page, use "Load game…", drop a file onto the page, or open
-`/?game=<url>` to load a game from a URL.
+`/?game=<url>` to load a game from a URL. Sound starts on the first click or
+key press (browsers block audio before that), and the Sound button mutes it.
 
 See [PLAN.md](PLAN.md) for the roadmap.
 

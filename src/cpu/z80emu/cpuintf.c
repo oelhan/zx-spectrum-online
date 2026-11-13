@@ -14,6 +14,10 @@
 Z80_STATE *zxcpu[MAX_CPU];
 uint8_t num_cpus = -1;
 
+// T-states from finished CPU_Emulate calls, and whether one is running
+static uint32_t tstates_done = 0;
+static int emulating = 0;
+
 // create CPU context and return a handle
 uint8_t CPU_Create(void) {
 	num_cpus++;
@@ -36,6 +40,7 @@ uint8_t CPU_Create(void) {
 void CPU_Reset(uint8_t cpuid) {
 
 	Z80Reset(zxcpu[cpuid]);
+	tstates_done = 0;
 	zxcpu[cpuid]->im = Z80_INTERRUPT_MODE_0;
 }
 
@@ -58,13 +63,25 @@ void CPU_Destroy(uint8_t cpuid) {
 
 // Emulatoe virtual CPU
 int CPU_Emulate(uint8_t cpuid, int ticks) {
-	return Z80Emulate(zxcpu[cpuid], ticks);
+	int n;
+	emulating = 1;
+	n = Z80Emulate(zxcpu[cpuid], ticks);
+	emulating = 0;
+	tstates_done += n;
+	return n;
+}
+
+// Inside CPU_Emulate, elapsed_cycles is the start of the current instruction
+uint32_t CPU_GetTStates(uint8_t cpuid) {
+	return tstates_done + (emulating ? zxcpu[cpuid]->elapsed_cycles : 0);
 }
 
 int oim;
 
 // Call interrupt on a CPU
-void CPU_Interrupt(uint8_t cpuid) {
+int CPU_Interrupt(uint8_t cpuid) {
+	int n;
+
 	if(oim!=zxcpu[cpuid]->im) {
 		oim = zxcpu[cpuid]->im;
 		printf("New interrupt: MODE: %d ",zxcpu[cpuid]->im);
@@ -84,7 +101,9 @@ void CPU_Interrupt(uint8_t cpuid) {
 						
 	}
 
-	Z80Emulate(zxcpu[cpuid], Z80Interrupt(zxcpu[cpuid],0xff));
+	n = Z80Interrupt(zxcpu[cpuid],0xff);
+	tstates_done += n;
+	return n + CPU_Emulate(cpuid, n);
 
 }
 

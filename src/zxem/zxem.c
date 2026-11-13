@@ -102,9 +102,10 @@ void ZX_End(void) {
 	OSD_Quit();
 }
 
-/* Handle Interrupt - called before each screen render */
+/* Handle Interrupt - called before each screen render. The T-states it
+   takes count towards the next frame */
 void ZX_Int(void) {
-	CPU_Interrupt(CPU_Handle);
+	total += CPU_Interrupt(CPU_Handle);
 }
 
 int next_total = 0;
@@ -119,6 +120,7 @@ int mainloop(void) {
 	}
 	if(total>=next_total) {
 		next_total +=CYCLES_PER_STEP;
+		ZX_SoundFrame();
 		ZX_Input();
 		ZX_Int();
 		ZX_Draw();
@@ -140,6 +142,7 @@ void ZX_Frame(void) {
 
 void ZX_Reset(void) {
 	CPU_Reset(CPU_Handle);
+	ZX_SoundReset();
 	total = 0;
 	next_total = 0;
 	debug = 0;

@@ -1,12 +1,14 @@
 /* app.js
  *
  * Browser front end for zxem.wasm: drives the 50Hz frame loop, draws the
- * framebuffer to a canvas and feeds keyboard state into the emulator.
+ * framebuffer to a canvas, feeds keyboard state into the emulator and plays
+ * the beeper through an AudioWorklet (beeper.js).
  */
 'use strict';
 
 const FRAME_MS = 20;    // Spectrum runs at 50 frames a second
 const MAX_CATCHUP = 4;  // frames to run at once after a stall (e.g. hidden tab)
+const PREBUFFER_MS = 60; // sound queued before playback starts, absorbs jitter
 
 // ZX_KEY_* values from src/zxem/zxio.h
 const ZX = {
@@ -40,6 +42,22 @@ const JOY = {
 const canvas = document.getElementById('screen');
 const statusEl = document.getElementById('status');
 const ctx = canvas.getContext('2d');
+
+// Per-browser settings; storage can be unavailable (private mode etc.)
+function loadSetting(name, fallback) {
+	try {
+		return localStorage.getItem(name) ?? fallback;
+	} catch {
+		return fallback;
+	}
+}
+function saveSetting(name, value) {
+	try {
+		localStorage.setItem(name, value);
+	} catch {
+		// not remembered, which is fine
+	}
+}
 
 function fitCanvas(w, h) {
 	// Largest whole-number scale that fits, so pixels stay square and crisp
@@ -139,9 +157,9 @@ createZXEM().then((zx) => {
 			? `Playing ${name}`
 			: `Could not load ${name}: ${zx.UTF8ToString(zx._zx_load_error())}`;
 		// The loaders may run many frames (tapes boot and type LOAD "");
-		// don't try to catch up on that time
-		last = performance.now();
-		acc = 0;
+		// don't try to catch up on that time, or play its sound
+		zx._zx_audio_take();
+		resetClock();
 	}
 
 	const fileEl = document.getElementById('file');
@@ -186,9 +204,99 @@ createZXEM().then((zx) => {
 		}
 	}
 
+	// Sound. Browsers only allow audio to start from a click or key press,
+	// so it starts on the first one. While it plays, the audio clock paces
+	// the emulator, so sound and emulation can't drift apart.
+	const soundEl = document.getElementById('sound');
+	let soundOn = loadSetting('zx-sound', 'on') === 'on';
+	let audio = null; // { ctx, node } once started
+	let audioStarting = false;
+
+	function audioRunning() {
+		return audio !== null && soundOn && audio.ctx.state === 'running';
+	}
+
+	function applySound() {
+		soundEl.textContent = soundOn ? 'Sound: on' : 'Sound: off';
+		if (!audio) return;
+		if (soundOn) {
+			audio.ctx.resume();
+			zx._zx_audio_init(audio.ctx.sampleRate);
+		} else {
+			audio.ctx.suspend();
+			zx._zx_audio_init(0);
+		}
+	}
+
+	async function startAudio() {
+		if (audio || audioStarting || !soundOn) return;
+		audioStarting = true;
+		try {
+			// Created before the first await, while the gesture still counts
+			const actx = new AudioContext({ latencyHint: 'interactive' });
+			await actx.audioWorklet.addModule('beeper.js');
+			const node = new AudioWorkletNode(actx, 'beeper', {
+				numberOfInputs: 0,
+				outputChannelCount: [1],
+				processorOptions: {
+					prebuffer: Math.round(actx.sampleRate * PREBUFFER_MS / 1000),
+					capacity: Math.round(actx.sampleRate / 4),
+				},
+			});
+			node.connect(actx.destination);
+			audio = { ctx: actx, node };
+			applySound();
+		} catch (err) {
+			statusEl.textContent = `No sound: ${err.message}`;
+		} finally {
+			audioStarting = false;
+		}
+	}
+
+	function gesture() {
+		if (!audio) startAudio();
+		else if (soundOn && audio.ctx.state !== 'running') audio.ctx.resume();
+	}
+	window.addEventListener('pointerdown', gesture, true);
+	window.addEventListener('keydown', gesture, true);
+
+	soundEl.addEventListener('click', () => {
+		soundOn = !soundOn;
+		saveSetting('zx-sound', soundOn ? 'on' : 'off');
+		if (audio) applySound();
+		else startAudio();
+		soundEl.blur();
+	});
+	applySound();
+
+	// Hand the samples from the frames just run to the worklet
+	function sendAudio() {
+		const n = zx._zx_audio_take();
+		if (!n || !audioRunning()) return;
+		const ptr = zx._zx_audio_buffer();
+		const samples = new Float32Array(zx.HEAPU8.buffer, ptr, n).slice();
+		audio.node.port.postMessage(samples, [samples.buffer]);
+	}
+
+	// Frame timing runs off the audio clock while sound plays, otherwise
+	// off performance.now()
+	let clockAudio = false;
 	let last = performance.now();
 	let acc = 0;
-	function tick(now) {
+	function clock() {
+		return clockAudio ? audio.ctx.currentTime * 1000 : performance.now();
+	}
+	function resetClock() {
+		last = clock();
+		acc = 0;
+	}
+
+	function tick() {
+		if (audioRunning() !== clockAudio) {
+			clockAudio = !clockAudio;
+			resetClock();
+		}
+		const now = clock();
 		acc += now - last;
 		last = now;
 		let frames = Math.floor(acc / FRAME_MS);
@@ -198,6 +306,7 @@ createZXEM().then((zx) => {
 			for (let i = 0; i < frames; i++) zx._zx_run_frame();
 			image.data.set(zx.HEAPU8.subarray(fbPtr, fbPtr + w * h * 4));
 			ctx.putImageData(image, 0, 0);
+			sendAudio();
 		}
 		requestAnimationFrame(tick);
 	}

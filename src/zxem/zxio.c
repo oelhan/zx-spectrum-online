@@ -73,6 +73,7 @@ void output(uint16_t port, uint8_t data) {
 	/* ULA: border colour in bits 0-2, MIC bit 3, EAR/speaker bit 4 */
 	if(!(port & 0x01)) {
 		border = data & 0x07;
+		ZX_SoundOutput(data);
 		ula_out = data;
 	}
 }

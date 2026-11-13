@@ -95,6 +95,21 @@ EMSCRIPTEN_KEEPALIVE int zx_load(const uint8_t *data, int len, const char *ext) 
 	return ZX_LoadData(data, len, ext);
 }
 
+/* Start beeper sound at rate Hz (the AudioContext's), or stop it with 0 */
+EMSCRIPTEN_KEEPALIVE void zx_audio_init(int rate) {
+	ZX_SoundInit(rate);
+}
+
+/* Samples made since the last zx_audio_take() are at zx_audio_buffer()
+   as 32 bit floats. Returns how many, and starts a new batch */
+EMSCRIPTEN_KEEPALIVE float *zx_audio_buffer(void) {
+	return ZX_SoundBuffer();
+}
+
+EMSCRIPTEN_KEEPALIVE int zx_audio_take(void) {
+	return ZX_SoundTake();
+}
+
 /* Why the last zx_load() failed */
 EMSCRIPTEN_KEEPALIVE const char *zx_load_error(void) {
 	return ZX_LoadError();

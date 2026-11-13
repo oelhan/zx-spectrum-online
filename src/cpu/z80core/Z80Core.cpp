@@ -95,6 +95,9 @@ void CZ80Core::Z80CoreMemWrite(unsigned short address, unsigned char data, unsig
 
 unsigned char CZ80Core::Z80CoreIORead(unsigned short address)
 {
+	// An I/O cycle takes 4 T-states
+	Z80CoreIOContention(address, 4);
+
 	if (m_IORead != NULL)
 	{
 		return m_IORead(address, m_Param);
@@ -107,6 +110,9 @@ unsigned char CZ80Core::Z80CoreIORead(unsigned short address)
 
 void CZ80Core::Z80CoreIOWrite(unsigned short address, unsigned char data)
 {
+	// An I/O cycle takes 4 T-states
+	Z80CoreIOContention(address, 4);
+
 	if (m_IOWrite != NULL)
 	{
 		m_IOWrite(address, data, m_Param);
@@ -660,6 +666,16 @@ void CZ80Core::Xor(unsigned char &r)
 	m_CPURegisters.regs.regA ^= r;
 	m_CPURegisters.regs.regF = m_ParityTable[m_CPURegisters.regs.regA];
 	m_CPURegisters.regs.regF |= m_SZ35Table[m_CPURegisters.regs.regA];
+}
+
+//-----------------------------------------------------------------------------------------
+
+void CZ80Core::InFlags(unsigned char &r)
+{
+	// IN r,(C): S, Z, 5, 3 and parity from the value read, H and N reset, C kept
+	m_CPURegisters.regs.regF &= FLAG_C;
+	m_CPURegisters.regs.regF |= m_ParityTable[r];
+	m_CPURegisters.regs.regF |= m_SZ35Table[r];
 }
 
 //-----------------------------------------------------------------------------------------

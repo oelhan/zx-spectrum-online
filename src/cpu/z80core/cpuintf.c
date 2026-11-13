@@ -70,14 +70,18 @@ int CPU_Emulate(uint8_t cpuid, int ticks) {
 }
 
 
+uint32_t CPU_GetTStates(uint8_t cpuid) {
+	return Z80CORE_GetTStates(zxcpu[cpuid]);
+}
+
 // Call interrupt on a CPU
-void CPU_Interrupt(uint8_t cpuid) {
+int CPU_Interrupt(uint8_t cpuid) {
 
 //	printf("Interrupt!\n");
 	Z80CORE_SignalInterrupt(zxcpu[cpuid]);
 
 	// do we have to do anything else??
-	Z80CORE_Execute(zxcpu[cpuid], 13);
+	return Z80CORE_Execute(zxcpu[cpuid], 13);
 
 //	printf("Finished Interrupt!\n");
 }
