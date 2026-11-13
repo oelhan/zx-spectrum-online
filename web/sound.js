@@ -1,77 +1,108 @@
 /* sound.js
  *
- * Beeper sound. Each frame's samples go to an AudioWorklet (beeper.js).
- * Browsers only allow audio to start from a click or key press, so it
- * starts on the first one. While it plays, the audio clock paces the
+ * Sound. Each frame's samples go to an AudioWorklet (beeper.js). The audio
+ * is set up as soon as the page loads, but most browsers keep it silent
+ * until the visitor clicks, taps or presses a key. Until then the page
+ * says so (the prompt over the screen, and the Sound button), and the
+ * first interaction starts it. While it plays, the audio clock paces the
  * emulator (see clock()), so sound and emulation can't drift apart.
  */
 import { loadSetting, saveSetting } from './settings.js';
 
 const PREBUFFER_MS = 60; // sound queued before playback starts, absorbs jitter
 
-export function createSound(zx, button, showError) {
+export function createSound(zx, button, prompt, showError) {
 	let on = loadSetting('zx-sound', 'on') === 'on';
-	let audio = null; // { ctx, node } once started
-	let starting = false;
+	let audio = null;    // { ctx, node } once set up
+	let starting = null; // the set-up in progress
 
 	function running() {
 		return audio !== null && on && audio.ctx.state === 'running';
 	}
 
+	// Waiting for the browser to allow sound
+	function blocked() {
+		return on && !running();
+	}
+
+	function render() {
+		button.textContent = !on ? 'Sound: off' : blocked() ? 'Sound: click to start' : 'Sound: on';
+		button.setAttribute('aria-pressed', String(running()));
+		prompt.hidden = !blocked();
+	}
+
+	// Match the audio to the on/off setting
 	function apply() {
-		button.textContent = on ? 'Sound: on' : 'Sound: off';
-		button.setAttribute('aria-pressed', String(on));
-		if (!audio) return;
-		if (on) {
-			audio.ctx.resume();
-			zx._zx_audio_init(audio.ctx.sampleRate);
-		} else {
-			audio.ctx.suspend();
-			zx._zx_audio_init(0);
+		if (audio) {
+			if (on) {
+				audio.ctx.resume().catch(() => {}); // waits for a gesture if blocked
+				zx._zx_audio_init(audio.ctx.sampleRate);
+			} else {
+				audio.ctx.suspend();
+				zx._zx_audio_init(0);
+			}
 		}
+		render();
 	}
 
-	async function start() {
-		if (audio || starting || !on) return;
-		starting = true;
-		try {
-			// Created before the first await, while the gesture still counts
-			const actx = new AudioContext({ latencyHint: 'interactive' });
-			await actx.audioWorklet.addModule('beeper.js');
-			const node = new AudioWorkletNode(actx, 'beeper', {
-				numberOfInputs: 0,
-				outputChannelCount: [1],
-				processorOptions: {
-					prebuffer: Math.round(actx.sampleRate * PREBUFFER_MS / 1000),
-					capacity: Math.round(actx.sampleRate / 4),
-				},
-			});
-			node.connect(actx.destination);
-			audio = { ctx: actx, node };
-			apply();
-		} catch (err) {
-			showError(`No sound: ${err.message}`);
-		} finally {
-			starting = false;
-		}
+	function start() {
+		starting ??= (async () => {
+			try {
+				// Created before the first await, so a gesture that started
+				// this still counts
+				const actx = new AudioContext({ latencyHint: 'interactive' });
+				actx.addEventListener('statechange', render);
+				await actx.audioWorklet.addModule('beeper.js');
+				const node = new AudioWorkletNode(actx, 'beeper', {
+					numberOfInputs: 0,
+					outputChannelCount: [1],
+					processorOptions: {
+						prebuffer: Math.round(actx.sampleRate * PREBUFFER_MS / 1000),
+						capacity: Math.round(actx.sampleRate / 4),
+					},
+				});
+				node.connect(actx.destination);
+				audio = { ctx: actx, node };
+				apply();
+			} catch (err) {
+				showError(`No sound: ${err.message}`);
+			}
+		})();
+		return starting;
 	}
 
+	// Any click, tap or key press lets blocked sound start. On touch screens
+	// only the end of a tap counts, hence pointerup too.
 	function gesture() {
+		if (!on) return;
 		if (!audio) start();
-		else if (on && audio.ctx.state !== 'running') audio.ctx.resume();
+		else if (audio.ctx.state !== 'running') audio.ctx.resume().catch(() => {});
 	}
-	// On touch screens only the end of a tap counts as a gesture
 	window.addEventListener('pointerdown', gesture, true);
 	window.addEventListener('pointerup', gesture, true);
 	window.addEventListener('keydown', gesture, true);
 
+	// While sound is blocked, the button only starts it. The gesture
+	// listeners above run first and resume the audio asynchronously, so note
+	// whether it was blocked when the press began, not when the click lands.
+	let pressedWhileBlocked = false;
+	button.addEventListener('pointerdown', () => { pressedWhileBlocked = blocked(); });
 	button.addEventListener('click', () => {
+		const wasBlocked = pressedWhileBlocked || blocked();
+		pressedWhileBlocked = false;
+		if (wasBlocked) return; // the gesture is already starting it
 		on = !on;
 		saveSetting('zx-sound', on ? 'on' : 'off');
-		if (audio) apply();
-		else start();
+		if (on && !audio) start();
+		apply();
 	});
-	apply();
+
+	// Set up straight away. Where the browser allows sound without a click
+	// it plays at once; otherwise the prompt shows. Firefox can say ahead of
+	// time, which avoids a console warning.
+	const policy = navigator.getAutoplayPolicy?.('audiocontext');
+	if (on && policy !== 'disallowed') start();
+	render();
 
 	return {
 		running,

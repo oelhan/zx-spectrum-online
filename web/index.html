@@ -98,6 +98,35 @@
 	#overlay[hidden] {
 		display: none;
 	}
+	/* Shown until the browser lets sound play */
+	#soundprompt {
+		position: absolute;
+		left: 50%;
+		bottom: 12px;
+		transform: translateX(-50%);
+		max-width: calc(100% - 24px);
+		padding: 8px 16px;
+		border: 1px solid var(--accent);
+		border-radius: 999px;
+		background: rgba(0, 0, 0, 0.8);
+		color: #fff;
+		font-size: 15px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		animation: pulse 2s ease-in-out infinite;
+	}
+	#soundprompt[hidden] {
+		display: none;
+	}
+	@keyframes pulse {
+		50% { border-color: transparent; }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		#soundprompt {
+			animation: none;
+		}
+	}
 	.toolbar {
 		display: flex;
 		flex-wrap: wrap;
@@ -296,6 +325,7 @@
 		<div id="screen-wrap">
 			<canvas id="screen" width="320" height="256"></canvas>
 			<button id="overlay" type="button" hidden>Paused. Click to carry on</button>
+			<button id="soundprompt" type="button" hidden>&#128264; Click or press any key for sound</button>
 		</div>
 		<div id="touch" hidden>
 			<div id="dpad" role="group" aria-label="Joystick"></div>

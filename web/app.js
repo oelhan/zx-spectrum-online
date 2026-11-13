@@ -46,7 +46,9 @@ createZXEM().then(async (zx) => {
 	const fbPtr = zx._zx_framebuffer();
 
 	const input = createInput(zx);
-	const sound = createSound(zx, $('sound'), (msg) => { statusEl.textContent = msg; });
+	const promptEl = $('soundprompt');
+	if (matchMedia('(pointer: coarse)').matches) promptEl.innerHTML = '&#128264; Tap for sound';
+	const sound = createSound(zx, $('sound'), promptEl, (msg) => { statusEl.textContent = msg; });
 
 	// --- Screen size -------------------------------------------------------
 
