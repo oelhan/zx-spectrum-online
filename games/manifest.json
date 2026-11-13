@@ -6,6 +6,26 @@
       "author": "Speccy.pl",
       "file": "BigThings.tap",
       "controls": "None, it's a demo. Its music needs the AY sound chip, which isn't emulated yet."
+    },
+    {
+      "title": "3D Stock Car Championship",
+      "author": "Firebird Software",
+      "year": 1988,
+      "file": "3D Stock Car Championship (1988)(Firebird Software).tap",
+      "controls": "Press a key at the title screen, then P to start or I for instructions. The menu picks keys, Kempston, cursor or Interface 2."
+    },
+    {
+      "title": "Astral Combat",
+      "author": "Trixs",
+      "file": "AstralCombat.tap",
+      "controls": "Follow the scrolling text (M plays the music). Covox sound isn't emulated, so parts are silent."
+    },
+    {
+      "title": "Rogue",
+      "author": "Mastertronic",
+      "year": 1988,
+      "file": "Rogue (1988)(Mastertronic).z80",
+      "controls": "Type a name for your rogue and press Enter."
     }
   ]
 }
