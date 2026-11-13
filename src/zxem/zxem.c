@@ -153,11 +153,11 @@ int ZX_Init(void) {
 	/* Create 8 bit buffer */
 	/* Spectrum screen is 32*8 by 24*8 */
 
-	OSD_SetVideoMode(256,192,0);
+	OSD_SetVideoMode(ZX_SCREEN_W,ZX_SCREEN_H,0);
 
 	zxmem = (uint8_t *)malloc(65536);
 	cached = (uint8_t *)malloc(65536);
-	screenbuf = (uint8_t *)malloc(256*192);
+	screenbuf = (uint8_t *)malloc(ZX_SCREEN_W*ZX_SCREEN_H);
 
 	// Create a z80 cpu instance
 	CPU_Handle = CPU_Create();

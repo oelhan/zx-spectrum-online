@@ -36,7 +36,7 @@
 		color: var(--muted);
 		font-size: 14px;
 	}
-	button {
+	button, select {
 		font: inherit;
 		padding: 4px 12px;
 	}
@@ -47,6 +47,12 @@
 	<canvas id="screen" width="256" height="192"></canvas>
 	<div>
 		<button id="reset">Reset</button>
+		<label>Arrow keys:
+			<select id="arrows">
+				<option value="cursor">Cursor keys</option>
+				<option value="kempston">Kempston joystick (Tab = fire)</option>
+			</select>
+		</label>
 	</div>
 	<div id="status">Loading…</div>
 </main>

@@ -112,8 +112,8 @@ void OSD_RenderScreen(void) {
 	int y;
 	SDL_LockSurface(screen);
 	uint8_t *pixels = (uint8_t*)screen->pixels;
-	for(y=0;y<192;y++) {
-		memcpy(pixels,&screenbuf[y*256],256);
+	for(y=0;y<ZX_SCREEN_H;y++) {
+		memcpy(pixels,&screenbuf[y*ZX_SCREEN_W],ZX_SCREEN_W);
 		pixels+=screen->pitch;
 	}
 	SDL_UnlockSurface(screen);

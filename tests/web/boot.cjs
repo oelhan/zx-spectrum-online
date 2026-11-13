@@ -70,8 +70,9 @@ createZXEM().then((zx) => {
 
 	// The copyright line is black ink on white paper in the bottom row of
 	// character cells; a screen of only paper means the ROM never printed it.
+	const border = (h - 192) / 2;
 	let ink = 0;
-	for (let y = h - 8; y < h; y++) {
+	for (let y = border + 184; y < border + 192; y++) {
 		for (let x = 0; x < w; x++) {
 			if (fb[(y * w + x) * 4] === 0) ink++;
 		}

@@ -56,7 +56,7 @@ void ZX_Draw(void) {
 	uint8_t bright = 0;
 	uint8_t attrib = 0;
 
-	uint16_t buf_addr = 0;
+	int buf_addr = 0;
 	uint16_t pixel_addr = 0;
 	uint16_t attrib_addr = 0;
 
@@ -82,7 +82,7 @@ void ZX_Draw(void) {
 		for ( x=0;x<32;x++ ) {
 
 			// Buf Addr is the first pixel we want to draw on
-			buf_addr = (y*8)*256+x*8;
+			buf_addr = (y*8+ZX_BORDER)*ZX_SCREEN_W+ZX_BORDER+x*8;
 
 			// Get Attribute
 			attrib = zxmem[attrib_addr];
@@ -131,7 +131,7 @@ void ZX_Draw(void) {
 					buf_addr-=8;
 				}
 				// move to next line
-				buf_addr+=256;
+				buf_addr+=ZX_SCREEN_W;
 			}
 			
 			// move attrib address along
@@ -144,6 +144,14 @@ void ZX_Draw(void) {
 	}
 
 	memset(&cached[16384],0,6912);
+
+	// Border: top and bottom bands, then the strips either side of the paper
+	memset(screenbuf,border,ZX_SCREEN_W*ZX_BORDER);
+	memset(&screenbuf[ZX_SCREEN_W*(ZX_BORDER+192)],border,ZX_SCREEN_W*ZX_BORDER);
+	for(y=ZX_BORDER;y<ZX_BORDER+192;y++) {
+		memset(&screenbuf[y*ZX_SCREEN_W],border,ZX_BORDER);
+		memset(&screenbuf[y*ZX_SCREEN_W+ZX_BORDER+256],border,ZX_BORDER);
+	}
 
 	// Flash flip changes every 16 frames
 	flash_count++;

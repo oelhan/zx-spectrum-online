@@ -61,7 +61,10 @@ enum {
 
 };
 
-GLOBAL uint8_t indata[255];
+GLOBAL uint8_t indata[256];
+
+// Kempston joystick: bit 0 right, 1 left, 2 down, 3 up, 4 fire (1 = pressed)
+GLOBAL uint8_t kempston;
 GLOBAL uint8_t keyaddr[ZX_KEY_LAST];
 GLOBAL uint8_t keybuf[ZX_KEY_LAST];
 

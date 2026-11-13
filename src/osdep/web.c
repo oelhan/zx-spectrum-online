@@ -13,8 +13,8 @@
 #include "osdep.h"
 #include "zxem.h"
 
-#define WEB_WIDTH  256
-#define WEB_HEIGHT 192
+#define WEB_WIDTH  ZX_SCREEN_W
+#define WEB_HEIGHT ZX_SCREEN_H
 
 // RGBA framebuffer handed to JavaScript
 static uint32_t framebuffer[WEB_WIDTH*WEB_HEIGHT];
@@ -73,6 +73,11 @@ EMSCRIPTEN_KEEPALIVE int zx_fb_width(void) {
 
 EMSCRIPTEN_KEEPALIVE int zx_fb_height(void) {
 	return WEB_HEIGHT;
+}
+
+/* Kempston joystick state: bit 0 right, 1 left, 2 down, 3 up, 4 fire */
+EMSCRIPTEN_KEEPALIVE void zx_joy(int bits) {
+	kempston = bits & 0x1F;
 }
 
 /* key is a ZX_KEY_* value (see zxio.h), down is 1 for pressed */

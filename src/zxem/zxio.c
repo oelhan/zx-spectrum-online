@@ -25,54 +25,51 @@ void writebyte(uint16_t addr, uint8_t data) {
 
 
 void writeword(uint16_t addr, uint16_t data) {
-	if(addr>=0x4000) {
-//		printf("Writing 0x%X to 0x%X\n",data,addr);
-	    zxmem[addr]=data;
-	    zxmem[addr+1]=data>>8;
-	}
-	cached[addr]=1;
-	cached[addr+1]=1;
-
+	/* Byte at a time so a word straddling 0x3FFF/0x4000 or 0xFFFF/0x0000
+	   only writes the RAM half */
+	writebyte(addr, data & 0xFF);
+	writebyte(addr+1, data >> 8);
 }
 
-uint8_t zx_data =0;
-/* TODO: Fix IN routine */
+/* Last value written to port 0xFE, bit 4 is the EAR/speaker output */
+uint8_t ula_out = 0;
+
 uint8_t input(uint16_t port) {
-	uint8_t regb = CPU_GetReg(CPU_Handle,"B");
-//	printf("Reading %02X\n",regb);
-	uint8_t data = zx_data;
-	switch(regb) {
-		case 0xFE:
-		case 0xFD:
-		case 0xFB:
-		case 0xF7:
-		case 0xEF:
-		case 0xDF:
-		case 0xBF:
-		case 0x7F:
-			data = indata[regb];
-//			printf("Indata: %d\n",indata[regb]);
-			return data;
-			break;
-		default: 
-			printf("Reading port 0x%02x:%02x\n",regb,port);
-			printf("PC: %04X %d\n",CPU_GetReg(CPU_Handle, "PC"), CPU_GetReg(CPU_Handle,"PC"));
-			break;
+	uint8_t data = 0xFF;
+	uint8_t row;
+
+	/* ULA: any even port. Each zero bit in the high byte selects a
+	   keyboard half-row, and the selected rows are ANDed together */
+	if(!(port & 0x01)) {
+		for(row=0;row<8;row++) {
+			if(!(port & (0x100<<row))) {
+				data &= indata[0xFF & ~(1<<row)];
+			}
+		}
+		/* Bits 5 and 7 always read 1. With no tape playing, bit 6
+		   follows the EAR output like an issue 3 Spectrum */
+		data |= 0xA0;
+		if(!(ula_out & 0x10)) {
+			data &= ~0x40;
+		}
+		return data;
 	}
 
-	data |= (0xe0); /* Set bits 5-7 - as reset above */
-	data &= ~0x40;
-	return data;
+	/* Kempston joystick: A5, A6 and A7 low (port 0x1F) */
+	if(!(port & 0xE0)) {
+		return kempston;
+	}
+
+	/* Nothing else is attached; floating bus reads come later */
+	return 0xFF;
 }
 
 void output(uint16_t port, uint8_t data) {
-//	indata[zxcpu.registers.byte[Z80_B]]=data;
-//	uint8_t data = 0xff;
-	printf("OUT %02X %02X %02X\n",CPU_GetReg(CPU_Handle,"B"),port,data);
-//	zxcpu.r=data;
-//	indata[zxcpu.registers.byte[Z80_B]]=data;
-	zx_data = data;
-
+	/* ULA: border colour in bits 0-2, MIC bit 3, EAR/speaker bit 4 */
+	if(!(port & 0x01)) {
+		border = data & 0x07;
+		ula_out = data;
+	}
 }
 // Setup keyboard array
 
@@ -182,7 +179,8 @@ void ZX_KeyInit(void) {
 	keybuf[ZX_KEY_N]=8;
 	keybuf[ZX_KEY_B]=16;
 
-	memset(indata,255,255);
+	memset(indata,255,sizeof(indata));
+	kempston = 0;
 }
 
 

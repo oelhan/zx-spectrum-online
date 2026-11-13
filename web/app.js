@@ -32,6 +32,11 @@ const KEYMAP = {
 for (const c of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') KEYMAP['Key' + c] = [ZX[c]];
 for (const d of '0123456789') KEYMAP['Digit' + d] = [ZX['N' + d]];
 
+// Kempston joystick bits, used for the arrow keys when selected
+const JOY = {
+	ArrowRight: 0x01, ArrowLeft: 0x02, ArrowDown: 0x04, ArrowUp: 0x08, Tab: 0x10,
+};
+
 const canvas = document.getElementById('screen');
 const statusEl = document.getElementById('status');
 const ctx = canvas.getContext('2d');
@@ -64,6 +69,16 @@ createZXEM().then((zx) => {
 	// Backspace (CAPS+0) and a real Shift can overlap without releasing early
 	const held = new Map();
 	const pressed = new Set();
+	const arrowsEl = document.getElementById('arrows');
+	let joy = 0;
+
+	function joyBit(code) {
+		return arrowsEl.value === 'kempston' ? JOY[code] : undefined;
+	}
+	function setJoy(bit, down) {
+		joy = down ? joy | bit : joy & ~bit;
+		zx._zx_joy(joy);
+	}
 
 	function setKeys(keys, down) {
 		for (const k of keys) {
@@ -74,24 +89,36 @@ createZXEM().then((zx) => {
 	}
 
 	window.addEventListener('keydown', (e) => {
+		if (e.target === arrowsEl) return;
+		const bit = joyBit(e.code);
 		const keys = KEYMAP[e.code];
-		if (!keys) return;
+		if (!bit && !keys) return;
 		e.preventDefault();
 		if (pressed.has(e.code)) return; // auto-repeat
 		pressed.add(e.code);
-		setKeys(keys, true);
+		if (bit) setJoy(bit, true);
+		else setKeys(keys, true);
 	});
 	window.addEventListener('keyup', (e) => {
-		const keys = KEYMAP[e.code];
-		if (!keys) return;
-		e.preventDefault();
 		if (!pressed.delete(e.code)) return;
-		setKeys(keys, false);
+		e.preventDefault();
+		const bit = joyBit(e.code);
+		if (bit) setJoy(bit, false);
+		else setKeys(KEYMAP[e.code], false);
 	});
-	// Release everything if focus leaves the page mid-press
-	window.addEventListener('blur', () => {
-		for (const code of pressed) setKeys(KEYMAP[code], false);
+	function releaseAll() {
+		for (const code of pressed) {
+			if (KEYMAP[code]) setKeys(KEYMAP[code], false);
+		}
 		pressed.clear();
+		joy = 0;
+		zx._zx_joy(0);
+	}
+	// Release everything if focus leaves the page mid-press
+	window.addEventListener('blur', releaseAll);
+	arrowsEl.addEventListener('change', () => {
+		releaseAll();
+		arrowsEl.blur();
 	});
 
 	document.getElementById('reset').addEventListener('click', (e) => {

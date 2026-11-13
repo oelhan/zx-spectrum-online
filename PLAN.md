@@ -91,16 +91,26 @@ int      zx_load(const uint8_t *data, int len, const char *ext); // tap/sna/z80
 - [x] Minimal `web/index.html` and `app.js`: canvas, a 50 Hz accumulator on `requestAnimationFrame`
 - [x] **Done when:** the browser shows "© 1982 Sinclair Research Ltd" at the correct speed and BASIC accepts typing
 
-Phase 1 notes: the framebuffer is 256x192 for now (the border arrives in phase 2).
-`make docker-web` builds without a local emsdk, and `make test-web` boots the ROM in Node.
+Phase 1 notes: `make docker-web` builds without a local emsdk, and `make test-web` boots the ROM in Node.
 
 ### 2. Make the hardware behave like a Spectrum
-- [ ] Port `0xFE` read: decode on A0=0 and AND every keyboard row whose high-byte bit is 0;
+- [x] Port `0xFE` read: decode on A0=0 and AND every keyboard row whose high-byte bit is 0;
       bit 6 = EAR, bits 5 and 7 set
-- [ ] Port `0xFE` write: border colour (bits 0–2) and beeper (bit 4). Remove the `printf`s
-- [ ] Border rendering (320x256 output)
-- [ ] Kempston joystick on port `0x1F`. Unmapped ports return `0xFF` (floating bus can come later)
-- [ ] Fix `writeword` writing a byte into ROM at `0x3FFF`
+- [x] Port `0xFE` write: border colour (bits 0–2) and beeper (bit 4). Remove the `printf`s
+- [x] Border rendering (320x256 output)
+- [x] Kempston joystick on port `0x1F`. Unmapped ports return `0xFF` (floating bus can come later)
+- [x] Fix `writeword` writing a byte into ROM at `0x3FFF`
+
+Phase 2 notes:
+- Both CPU cores now pass the full 16-bit port to `input()`/`output()`. z80emu used to
+  pass only the low byte.
+- The border is one colour per frame. Per-scanline border changes (loading stripes,
+  border effects) need T-state timestamps and are deferred.
+- The page has an "Arrow keys: cursor / Kempston" selector, with Tab as fire.
+- `make test-web` checks Kempston, multi-row keyboard reads and the border colour.
+- z80emu doesn't run the ROM reliably: BASIC stops responding after the first command,
+  and this happened before phase 2 too. Use z80core (the default) for the website.
+  z80emu stays only for `make test`.
 
 ### 3. Load games
 - [ ] `.sna` (48K) and `.z80` (v1 compressed, plus 48K-mode v2/v3)

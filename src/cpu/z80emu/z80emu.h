@@ -213,8 +213,9 @@ typedef struct Z80_STATE_ {
  * are used for general memory access. They obey the same rule as the code 
  * reading macros. The upper bits of the value x to write may be non-zero.
  * 
- * Z80_INPUT_BYTE() and Z80_OUTPUT_BYTE() are for input and output. The upper
- * bits of the port number to read or write are always zero. The input byte x 
+ * Z80_INPUT_BYTE() and Z80_OUTPUT_BYTE() are for input and output. The port
+ * is the full 16-bit address the Z80 puts on the bus (A or B in the upper
+ * byte), as the Spectrum decodes ports from both halves. The input byte x 
  * must be an unsigned 8-bit value. The value x to write is an unsigned 8-bit 
  * with its upper bits zeroes.
  *
@@ -280,8 +281,8 @@ typedef struct Z80_STATE_ {
 
 #define Z80_INPUT_BYTE(port, x)                                         \
 {                                                                       \
-        (x) = 0;                /* Make compiler happy. */              \
-        x = state->input(port);                                              \
+        int     input_port = (port);    /* Read port before x changes */ \
+        (x) = state->input(input_port);                                 \
 }
 
 #define Z80_OUTPUT_BYTE(port, x)                                        \
