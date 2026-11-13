@@ -5,7 +5,8 @@
  *
  * Cross platform ZX Spectrum emulator
  *
- * Snapshot loading (.sna and .z80, 48K only) and the load dispatcher.
+ * Snapshot loading (.sna and .z80, 48K only), the load dispatcher, and
+ * saving the machine as a .z80 snapshot (used for save states).
  */
 
 #include <ctype.h>
@@ -14,6 +15,9 @@
 #define RAM_SIZE 49152
 
 static const char *load_error = "";
+
+// Set while restoring a save state, which keeps the inserted tape
+static int restoring = 0;
 
 void ZX_SetLoadError(const char *msg) {
 	load_error = msg;
@@ -30,7 +34,9 @@ static uint16_t word(const uint8_t *p) {
 
 /* Put RAM and registers in place and make sure the whole screen redraws */
 static void start_snapshot(const uint8_t *ram, CPU_Regs *regs, uint8_t border_colour) {
-	ZX_TapeEject();
+	if(!restoring) {
+		ZX_TapeEject();
+	}
 	ZX_Reset();
 	memcpy(&zxmem[0x4000], ram, RAM_SIZE);
 	memset(cached, 1, 65536);
@@ -215,6 +221,81 @@ int ZX_LoadZ80(const uint8_t *data, int len) {
 
 	start_snapshot(ram, &regs, flags >> 1);
 	return 1;
+}
+
+/* Restore a save state made by ZX_SaveZ80, leaving the tape inserted */
+int ZX_RestoreZ80(const uint8_t *data, int len) {
+	int ok;
+
+	restoring = 1;
+	ok = ZX_LoadZ80(data, len);
+	restoring = 0;
+	return ok;
+}
+
+/* .z80 run length encoding: runs of 5 or more, or of 2 or more EDs, become
+   ED ED nn bb. The byte after a lone ED is never the start of a run. */
+static int z80_pack(const uint8_t *src, int len, uint8_t *dst) {
+	int s = 0, d = 0, run;
+
+	while(s < len) {
+		run = 1;
+		while(s+run < len && src[s+run] == src[s] && run < 255) {
+			run++;
+		}
+		if(run >= 5 || (src[s] == 0xED && run >= 2)) {
+			dst[d++] = 0xED;
+			dst[d++] = 0xED;
+			dst[d++] = run;
+			dst[d++] = src[s];
+			s += run;
+		} else if(src[s] == 0xED) {
+			dst[d++] = src[s++];
+			if(s < len) {
+				dst[d++] = src[s++];
+			}
+		} else {
+			dst[d++] = src[s++];
+		}
+	}
+	return d;
+}
+
+/* Save the machine as a compressed version 1 .z80 snapshot. out must hold
+   Z80_SAVE_MAX bytes. Returns the length written. */
+int ZX_SaveZ80(uint8_t *out) {
+	CPU_Regs regs;
+	int len;
+
+	CPU_GetRegs(CPU_Handle, &regs);
+	memset(out, 0, 30);
+	out[0] = regs.af >> 8;
+	out[1] = regs.af & 0xFF;
+	out[2] = regs.bc & 0xFF;  out[3] = regs.bc >> 8;
+	out[4] = regs.hl & 0xFF;  out[5] = regs.hl >> 8;
+	out[6] = regs.pc & 0xFF;  out[7] = regs.pc >> 8;
+	out[8] = regs.sp & 0xFF;  out[9] = regs.sp >> 8;
+	out[10] = regs.i;
+	out[11] = regs.r & 0x7F;
+	out[12] = (regs.r >> 7) | (border & 7) << 1 | 0x20;   // 0x20: compressed
+	out[13] = regs.de & 0xFF;  out[14] = regs.de >> 8;
+	out[15] = regs.bc_ & 0xFF; out[16] = regs.bc_ >> 8;
+	out[17] = regs.de_ & 0xFF; out[18] = regs.de_ >> 8;
+	out[19] = regs.hl_ & 0xFF; out[20] = regs.hl_ >> 8;
+	out[21] = regs.af_ >> 8;
+	out[22] = regs.af_ & 0xFF;
+	out[23] = regs.iy & 0xFF;  out[24] = regs.iy >> 8;
+	out[25] = regs.ix & 0xFF;  out[26] = regs.ix >> 8;
+	out[27] = regs.iff1;
+	out[28] = regs.iff2;
+	out[29] = regs.im & 3;
+
+	len = 30 + z80_pack(&zxmem[0x4000], RAM_SIZE, &out[30]);
+	out[len++] = 0x00;  // end marker
+	out[len++] = 0xED;
+	out[len++] = 0xED;
+	out[len++] = 0x00;
+	return len;
 }
 
 int ZX_LoadData(const uint8_t *data, int len, const char *ext) {

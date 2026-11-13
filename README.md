@@ -40,12 +40,20 @@ The browser version builds with Emscripten into `dist/` (no SDL):
 make docker-web       # build in the emscripten/emsdk Docker image (no local emsdk needed)
 make PLAT=WEB         # or build with a local emcc
 make serve            # http://localhost:8000
-make test-web         # boot, I/O, loader and sound tests in Node
+make test-web         # boot, I/O, loader, sound and save state tests in Node
 ```
 
 On the page, use "Load game…", drop a file onto the page, or open
 `/?game=<url>` to load a game from a URL. Sound starts on the first click or
 key press (browsers block audio before that), and the Sound button mutes it.
+
+- Joystick: choose Kempston, Sinclair or cursor. The arrow keys and Tab, a
+  gamepad, or the touch d-pad then drive it.
+- Save state / Load state: one save per game, kept in your browser.
+- Keyboard: shows an on-screen Spectrum keyboard. On it, Caps and Sym stay held
+  until the next key.
+- Game library: list games in `games/manifest.json` and they appear as cards
+  under the emulator (see [games/README.md](games/README.md)).
 
 See [PLAN.md](PLAN.md) for the roadmap.
 

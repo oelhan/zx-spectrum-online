@@ -27,10 +27,18 @@ const char *ZX_LoadError(void);
 int ZX_LoadSNA(const uint8_t *data, int len);
 int ZX_LoadZ80(const uint8_t *data, int len);
 
+// Save states: a .z80 snapshot of the machine. Restoring keeps the tape.
+// Worst case: header, RAM where every ED pair costs 4 bytes, end marker.
+#define Z80_SAVE_MAX (30 + 49152*2 + 4)
+int ZX_SaveZ80(uint8_t *out);
+int ZX_RestoreZ80(const uint8_t *data, int len);
+
 // Tapes (zxtape.c). Inserting a tape resets the Spectrum and types LOAD ""
 int ZX_LoadTAP(const uint8_t *data, int len);
 int ZX_LoadTZX(const uint8_t *data, int len);
 void ZX_TapeEject(void);
+int ZX_TapePos(void);
+void ZX_SetTapePos(int pos);
 uint8_t ZX_TapeTrap(void);
 
 // Shared by the loaders

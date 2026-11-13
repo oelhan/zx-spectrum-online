@@ -4,71 +4,335 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ZX Spectrum</title>
+<meta name="description" content="Play ZX Spectrum games in your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23111'/%3E%3Cpath d='M3 13 7 3h2L5 13z' fill='%23d70000'/%3E%3Cpath d='M6 13 10 3h2L8 13z' fill='%23d7d700'/%3E%3Cpath d='M9 13 13 3h1v2l-3 8z' fill='%2300d700'/%3E%3Cpath d='M12 13 14 8v5z' fill='%2300d7d7'/%3E%3C/svg%3E">
 <style>
 	:root {
 		--bg: #111;
+		--panel: #1c1c1c;
 		--fg: #ddd;
-		--muted: #888;
+		--muted: #8a8a8a;
+		--line: #333;
+		--accent: #00d7d7;
+		--key: #2a2a2a;
+		--key-down: #555;
+	}
+	* {
+		box-sizing: border-box;
 	}
 	html, body {
 		margin: 0;
-		height: 100%;
 		background: var(--bg);
 		color: var(--fg);
 		font-family: system-ui, sans-serif;
 	}
+	header {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 12px 16px 0;
+		max-width: 1100px;
+		margin: 0 auto;
+	}
+	header h1 {
+		margin: 0;
+		font-size: 20px;
+		font-weight: 600;
+	}
+	/* The four rainbow stripes */
+	.stripes {
+		display: flex;
+		height: 18px;
+		transform: skewX(-25deg);
+	}
+	.stripes span {
+		width: 7px;
+	}
+	.stripes span:nth-child(1) { background: #d70000; }
+	.stripes span:nth-child(2) { background: #d7d700; }
+	.stripes span:nth-child(3) { background: #00d700; }
+	.stripes span:nth-child(4) { background: #00d7d7; }
 	main {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		justify-content: center;
-		gap: 12px;
-		min-height: 100%;
-		padding: 16px;
-		box-sizing: border-box;
-	}
-	canvas {
-		image-rendering: pixelated;
-		background: #000;
-		max-width: 100%;
+		gap: 10px;
+		padding: 12px 16px 32px;
+		max-width: 1100px;
+		margin: 0 auto;
 	}
 	body.dragging main {
 		outline: 3px dashed var(--muted);
-		outline-offset: -12px;
+		outline-offset: -6px;
 	}
-	#status {
+	#machine {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 10px;
+		max-width: 100%;
+	}
+	#machine:fullscreen {
+		justify-content: center;
+		background: #000;
+	}
+	#screen-wrap {
+		position: relative;
+	}
+	canvas {
+		display: block;
+		image-rendering: pixelated;
+		background: #000;
+	}
+	#overlay {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		border: 0;
+		border-radius: 0;
+		background: rgba(0, 0, 0, 0.6);
+		color: #fff;
+		font-size: 20px;
+		cursor: pointer;
+	}
+	#overlay[hidden] {
+		display: none;
+	}
+	.toolbar {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 6px;
+	}
+	button, select {
+		font: inherit;
+		font-size: 14px;
+		padding: 6px 12px;
+		color: var(--fg);
+		background: var(--key);
+		border: 1px solid var(--line);
+		border-radius: 6px;
+		cursor: pointer;
+	}
+	button:hover:not(:disabled), select:hover {
+		border-color: var(--muted);
+	}
+	button:disabled {
+		opacity: 0.45;
+		cursor: default;
+	}
+	button[aria-pressed="true"] {
+		border-color: var(--accent);
+	}
+	label {
+		font-size: 14px;
+		color: var(--muted);
+	}
+	#status, #info {
 		color: var(--muted);
 		font-size: 14px;
+		text-align: center;
+		min-height: 1.2em;
+	}
+	#info {
+		color: var(--fg);
 	}
 	#hint {
 		color: var(--muted);
 		font-size: 13px;
+		margin: 0;
+		text-align: center;
 	}
-	button, select {
-		font: inherit;
-		padding: 4px 12px;
+	/* Dropping files and PC keys don't apply on touch screens */
+	@media (pointer: coarse) {
+		#hint {
+			display: none;
+		}
+	}
+
+	/* Touch d-pad and fire button */
+	#touch {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		width: min(100%, 480px);
+		padding: 0 8px;
+	}
+	#touch[hidden], #zxkeys[hidden] {
+		display: none;
+	}
+	#dpad {
+		position: relative;
+		width: 140px;
+		height: 140px;
+		border-radius: 50%;
+		background: var(--panel);
+		border: 1px solid var(--line);
+		touch-action: none;
+	}
+	#dpad::before, #dpad::after {
+		content: "";
+		position: absolute;
+		background: var(--key);
+		border-radius: 6px;
+	}
+	#dpad::before {
+		left: 50px; top: 14px; width: 40px; height: 112px;
+	}
+	#dpad::after {
+		top: 50px; left: 14px; height: 40px; width: 112px;
+	}
+	#dpad:not([data-dir="0"])[data-dir] {
+		border-color: var(--accent);
+	}
+	#fire {
+		width: 96px;
+		height: 96px;
+		border-radius: 50%;
+		font-size: 16px;
+		background: #5a1010;
+		touch-action: none;
+	}
+	#fire.down {
+		background: #d70000;
+	}
+
+	/* On-screen Spectrum keyboard */
+	#zxkeys {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		width: min(100%, 640px);
+		touch-action: manipulation;
+		user-select: none;
+		-webkit-user-select: none;
+	}
+	.zxrow {
+		display: flex;
+		gap: 4px;
+	}
+	.zxkey {
+		flex: 1 1 0;
+		min-width: 0;
+		padding: 10px 0;
+		font-size: 14px;
+		touch-action: none;
+	}
+	.zxkey.wide {
+		flex-grow: 1.6;
+		font-size: 12px;
+	}
+	.zxkey.down {
+		background: var(--key-down);
+		border-color: var(--accent);
+	}
+
+	/* Game library */
+	#library {
+		width: 100%;
+		margin-top: 16px;
+	}
+	#library h2 {
+		font-size: 16px;
+		font-weight: 600;
+		margin: 0 0 10px;
+	}
+	#games {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+		gap: 12px;
+	}
+	.game {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		padding: 0 0 10px;
+		text-align: left;
+		background: var(--panel);
+		overflow: hidden;
+	}
+	.cover {
+		aspect-ratio: 4 / 3;
+		background: linear-gradient(115deg, #000 0 55%, #d70000 55% 62%, #d7d700 62% 69%,
+			#00d700 69% 76%, #00d7d7 76% 83%, #000 83%);
+		margin-bottom: 4px;
+	}
+	.cover img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		image-rendering: pixelated;
+		display: block;
+	}
+	.game .title, .game .meta {
+		padding: 0 10px;
+	}
+	.game .meta {
+		font-size: 12px;
+		color: var(--muted);
+	}
+
+	/* Holds keyboard focus so extensions like Vimium leave the keys alone */
+	#keysink {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 1px;
+		height: 1px;
+		opacity: 0;
+		pointer-events: none;
+		border: 0;
+		padding: 0;
 	}
 </style>
 </head>
 <body>
+<header>
+	<div class="stripes" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+	<h1>ZX Spectrum</h1>
+</header>
 <main>
-	<canvas id="screen" width="256" height="192"></canvas>
-	<div>
-		<button id="load">Load game…</button>
+	<section id="machine" aria-label="Spectrum">
+		<div id="screen-wrap">
+			<canvas id="screen" width="320" height="256"></canvas>
+			<button id="overlay" type="button" hidden>Paused. Click to carry on</button>
+		</div>
+		<div id="touch" hidden>
+			<div id="dpad" role="group" aria-label="Joystick"></div>
+			<button id="fire" type="button">Fire</button>
+		</div>
+		<div id="zxkeys" role="group" aria-label="Spectrum keyboard" hidden></div>
+	</section>
+	<div class="toolbar">
+		<button id="load" type="button">Load game…</button>
 		<input id="file" type="file" accept=".tap,.tzx,.sna,.z80" hidden>
-		<button id="reset">Reset</button>
-		<button id="sound">Sound: on</button>
-		<label>Arrow keys:
-			<select id="arrows">
-				<option value="cursor">Cursor keys</option>
-				<option value="kempston">Kempston joystick (Tab = fire)</option>
+		<button id="reset" type="button">Reset</button>
+		<button id="pause" type="button">Pause</button>
+		<button id="save" type="button">Save state</button>
+		<button id="restore" type="button">Load state</button>
+		<button id="keyboard" type="button" aria-pressed="false">Keyboard</button>
+		<button id="fullscreen" type="button">Fullscreen</button>
+		<button id="sound" type="button">Sound: on</button>
+		<label>Joystick:
+			<select id="joystick">
+				<option value="keys">None (arrows are cursor keys)</option>
+				<option value="kempston">Kempston</option>
+				<option value="sinclair">Sinclair (Interface 2)</option>
+				<option value="cursor">Cursor (5–8, 0)</option>
 			</select>
 		</label>
 	</div>
 	<div id="status">Loading…</div>
-	<div id="hint">Drop a .tap, .tzx, .sna or .z80 file anywhere on the page to play it.</div>
+	<div id="info"></div>
+	<p id="hint">Drop a .tap, .tzx, .sna or .z80 file anywhere on the page to play it.
+		With a joystick selected, the arrow keys move it and Tab fires. Gamepads work too.</p>
+	<section id="library" hidden>
+		<h2>Games</h2>
+		<div id="games"></div>
+	</section>
 </main>
+<input id="keysink" type="text" inputmode="none" autocomplete="off" aria-hidden="true" tabindex="-1">
 <script src="zxem.js"></script>
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>

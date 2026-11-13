@@ -8,7 +8,7 @@
 # make PLAT=WEB      Emscripten build for the website (dist/), no SDL
 # make docker-web    PLAT=WEB build inside the emscripten/emsdk image
 # make serve         serve dist/ on http://localhost:8000
-# make test-web      run the PLAT=WEB build in Node: boot, I/O, loader and sound checks
+# make test-web      run the PLAT=WEB build in Node: boot, I/O, loader, sound and save state checks
 # make test          build and run the CPU test suite (z80emu core)
 
 ## Config
@@ -51,7 +51,7 @@ CXX = em++
 AR = emar
 OBJDIR = objweb
 SDL = 0
-WEB_EXPORTS = _zx_init,_zx_reset,_zx_run_frame,_zx_framebuffer,_zx_fb_width,_zx_fb_height,_zx_key,_zx_joy,_zx_load,_zx_load_error,_zx_audio_init,_zx_audio_buffer,_zx_audio_take,_malloc,_free
+WEB_EXPORTS = _zx_init,_zx_reset,_zx_run_frame,_zx_framebuffer,_zx_fb_width,_zx_fb_height,_zx_key,_zx_joy,_zx_load,_zx_load_error,_zx_audio_init,_zx_audio_buffer,_zx_audio_take,_zx_state_buffer,_zx_save_state,_zx_restore_state,_zx_tape_pos,_zx_set_tape_pos,_malloc,_free
 LINKFLAGS += -s MODULARIZE=1 -s EXPORT_NAME=createZXEM -s ENVIRONMENT=web,node \
 	-s EXPORTED_FUNCTIONS=$(WEB_EXPORTS) -s EXPORTED_RUNTIME_METHODS=HEAPU8,ccall,UTF8ToString \
 	--embed-file roms/48k.rom@roms/48k.rom
@@ -132,6 +132,14 @@ all: $(WEB_FILES)
 dist/%: web/%
 	@mkdir -p dist
 	cp $< $@
+
+## Game library: games/* except the README goes to dist/games/
+GAME_FILES := $(patsubst games/%,dist/games/%,$(filter-out games/README.md,$(wildcard games/*)))
+all: $(GAME_FILES)
+
+dist/games/%: games/%
+	@mkdir -p dist/games
+	cp $< $@
 endif
 
 EMSDK_IMAGE ?= emscripten/emsdk:3.1.74
@@ -148,6 +156,7 @@ test-web: dist/zxem.js
 	node tests/web/io.cjs
 	node tests/web/loaders.cjs
 	node tests/web/sound.cjs
+	node tests/web/state.cjs
 
 ## CPU test suite (exercises the z80emu core, whichever CPU zxem uses)
 

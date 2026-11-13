@@ -158,12 +158,38 @@ Phase 4 notes:
   still a manual check.
 
 ### 5. Website
-- [ ] Landing page with a game library from `games/manifest.json` (title, author, cover, file, controls)
-- [ ] Integer scaling with crisp pixels (`image-rendering: pixelated`), fullscreen, pause and reset
-- [ ] Key mapping: PC keys to the Spectrum matrix (Backspace = CAPS+0, arrows = cursor/Kempston)
-- [ ] Gamepad API to Kempston
-- [ ] Touch: on-screen d-pad and fire, plus a pop-up Spectrum keyboard for mobile
-- [ ] Save states in `localStorage` (snapshot of RAM and registers)
+- [x] Landing page with a game library from `games/manifest.json` (title, author, cover, file, controls)
+- [x] Integer scaling with crisp pixels (`image-rendering: pixelated`), fullscreen, pause and reset
+- [x] Key mapping: PC keys to the Spectrum matrix (Backspace = CAPS+0, arrows = cursor/Kempston)
+- [x] Gamepad API to Kempston
+- [x] Touch: on-screen d-pad and fire, plus a pop-up Spectrum keyboard for mobile
+- [x] Save states in `localStorage` (snapshot of RAM and registers)
+- [ ] Add games to the library (needs games whose authors allow sharing; see `games/README.md`)
+
+Phase 5 notes:
+- The page is split into ES modules:
+  - `app.js`: frame loop, loading, library, pause, fullscreen, save states.
+  - `input.js`: keyboard, joysticks, gamepad, touch and the on-screen keyboard.
+  - `sound.js`: audio.
+  - `settings.js`: guarded `localStorage`.
+- Joystick choices are none, Kempston, Sinclair (Interface 2) and cursor:
+  - With a joystick selected, the arrow keys and Tab drive it, and so do gamepads and the touch d-pad.
+  - With none selected, the arrows are cursor keys, and gamepads and the d-pad act as a cursor joystick.
+  - A library entry can pick the joystick for its game.
+- Save states are compressed `.z80` v1 snapshots (`ZX_SaveZ80`), one per game in `localStorage`,
+  with the tape position stored next to them. Restoring keeps the inserted tape.
+  FLASH phase isn't saved, which `.z80` v1 can't hold.
+- Keys go to a hidden text field that keeps focus, so extensions like Vimium leave them alone.
+  Touch screens skip this, so no system keyboard pops up.
+- Modifier sync: every key event's shift, ctrl and alt flags release a Shift, Ctrl or Alt that
+  was let go while the page wasn't looking.
+- On-screen keyboard: Caps and Sym latch until the next key, and taps are held at least 60 ms
+  so the ROM's keyboard scan sees them.
+- `tests/web/state.cjs` checks save states: RLE edge cases, round trips, and keeping the tape.
+- Checked in headless Chromium (desktop, and a 390px phone with touch). All 27 checks passed:
+  the library (titles as text, bad entries skipped, missing files reported), `?game=` links,
+  Kempston from the keys, modifier sync, save and restore, pause, the on-screen keyboard,
+  the d-pad, and no sideways scroll on a phone. Real gamepads and real phones are still manual checks.
 
 ### 6. Container and hcode deployment
 - [ ] Multi-stage `Dockerfile`:

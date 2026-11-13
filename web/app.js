@@ -1,73 +1,38 @@
 /* app.js
  *
- * Browser front end for zxem.wasm: drives the 50Hz frame loop, draws the
- * framebuffer to a canvas, feeds keyboard state into the emulator and plays
- * the beeper through an AudioWorklet (beeper.js).
+ * Browser front end for zxem.wasm: runs the 50Hz frame loop and draws the
+ * framebuffer to a canvas, loads games (file picker, drag and drop, URL,
+ * game library), and handles pause, fullscreen and save states. Input is in
+ * input.js and sound in sound.js.
  */
-'use strict';
+import { createInput } from './input.js';
+import { createSound } from './sound.js';
+import { loadSetting, saveSetting } from './settings.js';
 
 const FRAME_MS = 20;    // Spectrum runs at 50 frames a second
 const MAX_CATCHUP = 4;  // frames to run at once after a stall (e.g. hidden tab)
-const PREBUFFER_MS = 60; // sound queued before playback starts, absorbs jitter
+const JOYSTICKS = ['keys', 'kempston', 'sinclair', 'cursor'];
 
-// ZX_KEY_* values from src/zxem/zxio.h
-const ZX = {
-	SHIFT: 1, Z: 2, X: 3, C: 4, V: 5,
-	A: 6, S: 7, D: 8, F: 9, G: 10,
-	Q: 11, W: 12, E: 13, R: 14, T: 15,
-	N1: 16, N2: 17, N3: 18, N4: 19, N5: 20,
-	N0: 21, N9: 22, N8: 23, N7: 24, N6: 25,
-	P: 26, O: 27, I: 28, U: 29, Y: 30,
-	ENTER: 31, L: 32, K: 33, J: 34, H: 35,
-	SPACE: 36, SYM: 37, M: 38, N: 39, B: 40,
-};
-
-// KeyboardEvent.code -> list of Spectrum keys held while it is down
-const KEYMAP = {
-	ShiftLeft: [ZX.SHIFT], ShiftRight: [ZX.SHIFT],
-	ControlLeft: [ZX.SYM], ControlRight: [ZX.SYM], AltLeft: [ZX.SYM], AltRight: [ZX.SYM],
-	Enter: [ZX.ENTER], Space: [ZX.SPACE],
-	Backspace: [ZX.SHIFT, ZX.N0],
-	ArrowLeft: [ZX.SHIFT, ZX.N5], ArrowDown: [ZX.SHIFT, ZX.N6],
-	ArrowUp: [ZX.SHIFT, ZX.N7], ArrowRight: [ZX.SHIFT, ZX.N8],
-};
-for (const c of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') KEYMAP['Key' + c] = [ZX[c]];
-for (const d of '0123456789') KEYMAP['Digit' + d] = [ZX['N' + d]];
-
-// Kempston joystick bits, used for the arrow keys when selected
-const JOY = {
-	ArrowRight: 0x01, ArrowLeft: 0x02, ArrowDown: 0x04, ArrowUp: 0x08, Tab: 0x10,
-};
-
-const canvas = document.getElementById('screen');
-const statusEl = document.getElementById('status');
+const $ = (id) => document.getElementById(id);
+const canvas = $('screen');
+const machine = $('machine');
+const statusEl = $('status');
+const infoEl = $('info');
 const ctx = canvas.getContext('2d');
 
-// Per-browser settings; storage can be unavailable (private mode etc.)
-function loadSetting(name, fallback) {
-	try {
-		return localStorage.getItem(name) ?? fallback;
-	} catch {
-		return fallback;
+function toBase64(bytes) {
+	let s = '';
+	for (let i = 0; i < bytes.length; i += 0x8000) {
+		s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
 	}
-}
-function saveSetting(name, value) {
-	try {
-		localStorage.setItem(name, value);
-	} catch {
-		// not remembered, which is fine
-	}
+	return btoa(s);
 }
 
-function fitCanvas(w, h) {
-	// Largest whole-number scale that fits, so pixels stay square and crisp
-	const scale = Math.max(1, Math.floor(Math.min(
-		(window.innerWidth - 32) / w, (window.innerHeight - 120) / h)));
-	canvas.style.width = (w * scale) + 'px';
-	canvas.style.height = (h * scale) + 'px';
+function fromBase64(text) {
+	return Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
 }
 
-createZXEM().then((zx) => {
+createZXEM().then(async (zx) => {
 	if (!zx._zx_init()) {
 		statusEl.textContent = 'Failed to start the emulator';
 		return;
@@ -77,100 +42,143 @@ createZXEM().then((zx) => {
 	const h = zx._zx_fb_height();
 	canvas.width = w;
 	canvas.height = h;
-	fitCanvas(w, h);
-	window.addEventListener('resize', () => fitCanvas(w, h));
-
 	const image = ctx.createImageData(w, h);
 	const fbPtr = zx._zx_framebuffer();
 
-	// Count how many Spectrum keys each held PC key holds down, so combos like
-	// Backspace (CAPS+0) and a real Shift can overlap without releasing early
-	const held = new Map();
-	const pressed = new Set();
-	const arrowsEl = document.getElementById('arrows');
-	let joy = 0;
+	const input = createInput(zx);
+	const sound = createSound(zx, $('sound'), (msg) => { statusEl.textContent = msg; });
 
-	function joyBit(code) {
-		return arrowsEl.value === 'kempston' ? JOY[code] : undefined;
-	}
-	function setJoy(bit, down) {
-		joy = down ? joy | bit : joy & ~bit;
-		zx._zx_joy(joy);
-	}
+	// --- Screen size -------------------------------------------------------
 
-	function setKeys(keys, down) {
-		for (const k of keys) {
-			const n = (held.get(k) || 0) + (down ? 1 : -1);
-			held.set(k, Math.max(0, n));
-			zx._zx_key(k, n > 0 ? 1 : 0);
-		}
-	}
+	const touchEl = $('touch');
+	const keysEl = $('zxkeys');
 
-	window.addEventListener('keydown', (e) => {
-		if (e.target === arrowsEl) return;
-		const bit = joyBit(e.code);
-		const keys = KEYMAP[e.code];
-		if (!bit && !keys) return;
-		e.preventDefault();
-		if (pressed.has(e.code)) return; // auto-repeat
-		pressed.add(e.code);
-		if (bit) setJoy(bit, true);
-		else setKeys(keys, true);
-	});
-	window.addEventListener('keyup', (e) => {
-		if (!pressed.delete(e.code)) return;
-		e.preventDefault();
-		const bit = joyBit(e.code);
-		if (bit) setJoy(bit, false);
-		else setKeys(KEYMAP[e.code], false);
-	});
-	function releaseAll() {
-		for (const code of pressed) {
-			if (KEYMAP[code]) setKeys(KEYMAP[code], false);
-		}
-		pressed.clear();
-		joy = 0;
-		zx._zx_joy(0);
+	// Largest whole-number scale that fits, so pixels stay square and crisp.
+	// Below 1x (narrow phones) any scale will do.
+	function fitCanvas() {
+		const full = document.fullscreenElement === machine;
+		const below = (touchEl.hidden ? 0 : touchEl.offsetHeight) +
+			(keysEl.hidden ? 0 : keysEl.offsetHeight);
+		const availW = full ? window.innerWidth : document.documentElement.clientWidth - 32;
+		const availH = (full ? window.innerHeight : window.innerHeight - 140) - below;
+		let scale = Math.min(availW / w, availH / h);
+		scale = scale >= 1 ? Math.floor(scale) : Math.max(scale, availW / w * 0.5);
+		canvas.style.width = Math.floor(w * scale) + 'px';
+		canvas.style.height = Math.floor(h * scale) + 'px';
 	}
-	// Release everything if focus leaves the page mid-press
-	window.addEventListener('blur', releaseAll);
-	arrowsEl.addEventListener('change', () => {
-		releaseAll();
-		arrowsEl.blur();
+	window.addEventListener('resize', fitCanvas);
+	document.addEventListener('fullscreenchange', fitCanvas);
+
+	// --- Controls ----------------------------------------------------------
+
+	const joystickEl = $('joystick');
+	function setJoystick(mode) {
+		if (!JOYSTICKS.includes(mode)) return;
+		joystickEl.value = mode;
+		input.mode = mode;
+	}
+	setJoystick(loadSetting('zx-joystick', 'keys'));
+	joystickEl.addEventListener('change', () => {
+		input.mode = joystickEl.value;
+		saveSetting('zx-joystick', joystickEl.value);
+		input.focusSink();
 	});
 
-	document.getElementById('reset').addEventListener('click', (e) => {
+	// Touch d-pad and fire on touch screens, the Spectrum keyboard on request
+	input.bindDpad($('dpad'));
+	input.bindFire($('fire'));
+	input.buildKeyboard(keysEl);
+	touchEl.hidden = !matchMedia('(pointer: coarse)').matches;
+	$('keyboard').addEventListener('click', (e) => {
+		keysEl.hidden = !keysEl.hidden;
+		e.currentTarget.setAttribute('aria-pressed', String(!keysEl.hidden));
+		fitCanvas();
+	});
+	fitCanvas();
+
+	$('reset').addEventListener('click', () => {
+		input.releaseAll();
 		zx._zx_reset();
-		e.target.blur();
+		setPaused(false);
 	});
+
+	let paused = false;
+	const overlay = $('overlay');
+	function setPaused(p) {
+		paused = p;
+		overlay.hidden = !p;
+		$('pause').textContent = p ? 'Resume' : 'Pause';
+		if (p) input.releaseAll();
+		resetClock();
+	}
+	$('pause').addEventListener('click', () => setPaused(!paused));
+	overlay.addEventListener('click', () => setPaused(false));
+
+	if (document.fullscreenEnabled) {
+		$('fullscreen').addEventListener('click', () => {
+			if (document.fullscreenElement) document.exitFullscreen();
+			else machine.requestFullscreen().catch(() => {});
+		});
+	} else {
+		$('fullscreen').hidden = true; // e.g. iPhone Safari
+	}
+
+	// --- Loading games -----------------------------------------------------
+
+	// The game being played: its file name, and its library entry if any
+	let current = { name: '', entry: null };
+
+	function showInfo() {
+		const e = current.entry;
+		infoEl.textContent = e?.controls ? `Controls: ${e.controls}` : '';
+		updateSaveButtons();
+	}
 
 	// Copy the file into WASM memory and hand it to the C loaders
-	function loadGame(name, bytes) {
+	function loadGame(name, bytes, entry = null) {
 		const ext = name.includes('.') ? name.split('.').pop() : '';
 		const ptr = zx._malloc(bytes.length);
 		zx.HEAPU8.set(bytes, ptr);
-		releaseAll();
+		input.releaseAll();
 		const ok = zx.ccall('zx_load', 'number', ['number', 'number', 'string'],
 			[ptr, bytes.length, ext]);
 		zx._free(ptr);
-		statusEl.textContent = ok
-			? `Playing ${name}`
-			: `Could not load ${name}: ${zx.UTF8ToString(zx._zx_load_error())}`;
+		if (ok) {
+			current = { name, entry };
+			if (entry?.joystick) setJoystick(entry.joystick);
+			statusEl.textContent = `Playing ${entry?.title ?? name}`;
+		} else {
+			statusEl.textContent = `Could not load ${name}: ${zx.UTF8ToString(zx._zx_load_error())}`;
+		}
+		showInfo();
 		// The loaders may run many frames (tapes boot and type LOAD "");
 		// don't try to catch up on that time, or play its sound
-		zx._zx_audio_take();
-		resetClock();
+		sound.discard();
+		setPaused(false);
+		return ok;
 	}
 
-	const fileEl = document.getElementById('file');
-	document.getElementById('load').addEventListener('click', (e) => {
-		e.target.blur();
-		fileEl.click();
-	});
+	// Same origin, or a server allowing CORS
+	async function loadFromUrl(url, entry = null) {
+		statusEl.textContent = `Fetching ${entry?.title ?? url}…`;
+		try {
+			const res = await fetch(url);
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const name = new URL(url, location.href).pathname.split('/').pop();
+			return loadGame(name, new Uint8Array(await res.arrayBuffer()), entry);
+		} catch (err) {
+			statusEl.textContent = `Could not fetch ${url}: ${err.message}`;
+			return false;
+		}
+	}
+
+	const fileEl = $('file');
+	$('load').addEventListener('click', () => fileEl.click());
 	fileEl.addEventListener('change', async () => {
 		const file = fileEl.files[0];
 		if (file) loadGame(file.name, new Uint8Array(await file.arrayBuffer()));
 		fileEl.value = '';
+		input.focusSink();
 	});
 
 	// Drag and drop anywhere on the page
@@ -191,128 +199,137 @@ createZXEM().then((zx) => {
 		if (file) loadGame(file.name, new Uint8Array(await file.arrayBuffer()));
 	});
 
-	// ?game=<url> loads a game on start (same origin, or a server allowing CORS)
-	async function loadFromUrl(url) {
-		statusEl.textContent = `Fetching ${url}…`;
+	// --- Game library (games/manifest.json) --------------------------------
+
+	async function loadLibrary() {
+		let games = [];
 		try {
-			const res = await fetch(url);
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			const name = new URL(url, location.href).pathname.split('/').pop();
-			loadGame(name, new Uint8Array(await res.arrayBuffer()));
-		} catch (err) {
-			statusEl.textContent = `Could not fetch ${url}: ${err.message}`;
+			const res = await fetch('games/manifest.json', { cache: 'no-cache' });
+			if (res.ok) games = (await res.json()).games ?? [];
+		} catch {
+			// No library is fine: games can still be loaded from files
 		}
-	}
+		games = games.filter((g) => typeof g?.title === 'string' && typeof g?.file === 'string');
 
-	// Sound. Browsers only allow audio to start from a click or key press,
-	// so it starts on the first one. While it plays, the audio clock paces
-	// the emulator, so sound and emulation can't drift apart.
-	const soundEl = document.getElementById('sound');
-	let soundOn = loadSetting('zx-sound', 'on') === 'on';
-	let audio = null; // { ctx, node } once started
-	let audioStarting = false;
-
-	function audioRunning() {
-		return audio !== null && soundOn && audio.ctx.state === 'running';
-	}
-
-	function applySound() {
-		soundEl.textContent = soundOn ? 'Sound: on' : 'Sound: off';
-		if (!audio) return;
-		if (soundOn) {
-			audio.ctx.resume();
-			zx._zx_audio_init(audio.ctx.sampleRate);
-		} else {
-			audio.ctx.suspend();
-			zx._zx_audio_init(0);
-		}
-	}
-
-	async function startAudio() {
-		if (audio || audioStarting || !soundOn) return;
-		audioStarting = true;
-		try {
-			// Created before the first await, while the gesture still counts
-			const actx = new AudioContext({ latencyHint: 'interactive' });
-			await actx.audioWorklet.addModule('beeper.js');
-			const node = new AudioWorkletNode(actx, 'beeper', {
-				numberOfInputs: 0,
-				outputChannelCount: [1],
-				processorOptions: {
-					prebuffer: Math.round(actx.sampleRate * PREBUFFER_MS / 1000),
-					capacity: Math.round(actx.sampleRate / 4),
-				},
+		const list = $('games');
+		for (const g of games) {
+			const card = document.createElement('button');
+			card.type = 'button';
+			card.className = 'game';
+			const cover = document.createElement('div');
+			cover.className = 'cover';
+			if (typeof g.cover === 'string') {
+				const img = document.createElement('img');
+				img.src = 'games/' + g.cover;
+				img.alt = '';
+				img.loading = 'lazy';
+				cover.append(img);
+			}
+			const title = document.createElement('div');
+			title.className = 'title';
+			title.textContent = g.title;
+			const meta = document.createElement('div');
+			meta.className = 'meta';
+			meta.textContent = [g.author, g.year].filter(Boolean).join(' · ');
+			card.append(cover, title, meta);
+			card.addEventListener('click', async () => {
+				const url = 'games/' + g.file;
+				if (await loadFromUrl(url, g)) {
+					history.replaceState(null, '', '?game=' + encodeURIComponent(url));
+					window.scrollTo({ top: 0, behavior: 'smooth' });
+				}
 			});
-			node.connect(actx.destination);
-			audio = { ctx: actx, node };
-			applySound();
-		} catch (err) {
-			statusEl.textContent = `No sound: ${err.message}`;
-		} finally {
-			audioStarting = false;
+			list.append(card);
 		}
+		$('library').hidden = games.length === 0;
+		return games;
 	}
 
-	function gesture() {
-		if (!audio) startAudio();
-		else if (soundOn && audio.ctx.state !== 'running') audio.ctx.resume();
-	}
-	window.addEventListener('pointerdown', gesture, true);
-	window.addEventListener('keydown', gesture, true);
+	// --- Save states -------------------------------------------------------
 
-	soundEl.addEventListener('click', () => {
-		soundOn = !soundOn;
-		saveSetting('zx-sound', soundOn ? 'on' : 'off');
-		if (audio) applySound();
-		else startAudio();
-		soundEl.blur();
+	// One save per game, kept in this browser
+	const stateKey = () => 'zx-state:' + (current.name || 'basic');
+
+	function updateSaveButtons() {
+		$('restore').disabled = loadSetting(stateKey(), null) === null;
+	}
+
+	$('save').addEventListener('click', () => {
+		const n = zx._zx_save_state();
+		const ptr = zx._zx_state_buffer();
+		const state = {
+			z80: toBase64(zx.HEAPU8.subarray(ptr, ptr + n)),
+			tape: zx._zx_tape_pos(),
+			saved: new Date().toISOString(),
+		};
+		statusEl.textContent = saveSetting(stateKey(), JSON.stringify(state))
+			? 'State saved in this browser'
+			: 'Could not save: browser storage is full or blocked';
+		updateSaveButtons();
 	});
-	applySound();
 
-	// Hand the samples from the frames just run to the worklet
-	function sendAudio() {
-		const n = zx._zx_audio_take();
-		if (!n || !audioRunning()) return;
-		const ptr = zx._zx_audio_buffer();
-		const samples = new Float32Array(zx.HEAPU8.buffer, ptr, n).slice();
-		audio.node.port.postMessage(samples, [samples.buffer]);
-	}
+	$('restore').addEventListener('click', () => {
+		let state;
+		try {
+			state = JSON.parse(loadSetting(stateKey(), 'null'));
+		} catch {
+			state = null;
+		}
+		if (!state?.z80) return;
+		const bytes = fromBase64(state.z80);
+		const ptr = zx._malloc(bytes.length);
+		zx.HEAPU8.set(bytes, ptr);
+		input.releaseAll();
+		const ok = zx._zx_restore_state(ptr, bytes.length);
+		zx._free(ptr);
+		if (ok) zx._zx_set_tape_pos(state.tape ?? 0);
+		statusEl.textContent = ok
+			? `State from ${new Date(state.saved).toLocaleString()} restored`
+			: `Could not restore: ${zx.UTF8ToString(zx._zx_load_error())}`;
+		sound.discard();
+		setPaused(false);
+	});
 
-	// Frame timing runs off the audio clock while sound plays, otherwise
-	// off performance.now()
+	// --- Frame loop --------------------------------------------------------
+
+	// Frame timing runs off the audio clock while sound plays, otherwise off
+	// performance.now(); restart the count whenever the clock changes
 	let clockAudio = false;
-	let last = performance.now();
+	let last = sound.clock();
 	let acc = 0;
-	function clock() {
-		return clockAudio ? audio.ctx.currentTime * 1000 : performance.now();
-	}
 	function resetClock() {
-		last = clock();
+		last = sound.clock();
 		acc = 0;
 	}
 
 	function tick() {
-		if (audioRunning() !== clockAudio) {
+		if (sound.running() !== clockAudio) {
 			clockAudio = !clockAudio;
 			resetClock();
 		}
-		const now = clock();
+		input.poll();
+		const now = sound.clock();
 		acc += now - last;
 		last = now;
-		let frames = Math.floor(acc / FRAME_MS);
-		acc -= frames * FRAME_MS;
+		let frames = paused ? 0 : Math.floor(acc / FRAME_MS);
+		acc = paused ? 0 : acc - frames * FRAME_MS;
 		if (frames > MAX_CATCHUP) frames = MAX_CATCHUP;
 		if (frames > 0) {
 			for (let i = 0; i < frames; i++) zx._zx_run_frame();
 			image.data.set(zx.HEAPU8.subarray(fbPtr, fbPtr + w * h * 4));
 			ctx.putImageData(image, 0, 0);
-			sendAudio();
+			sound.send();
 		}
 		requestAnimationFrame(tick);
 	}
-	statusEl.textContent = 'Ready. Type on your keyboard.';
+
+	statusEl.textContent = 'Ready. Type on your keyboard, or load a game.';
+	updateSaveButtons();
+	input.focusSink();
 	requestAnimationFrame(tick);
 
+	// ?game=<url> loads a game on start, with its library details if listed
+	const games = await loadLibrary();
 	const game = new URLSearchParams(location.search).get('game');
-	if (game) loadFromUrl(game);
+	if (game) loadFromUrl(game, games.find((g) => 'games/' + g.file === game) ?? null);
 });

@@ -39,6 +39,17 @@ void ZX_TapeEject(void) {
 	tape_loaded = 0;
 }
 
+/* Next block to load, kept with save states */
+int ZX_TapePos(void) {
+	return block_pos;
+}
+
+void ZX_SetTapePos(int pos) {
+	if(pos >= 0 && pos <= block_count) {
+		block_pos = pos;
+	}
+}
+
 static int add_block(int offset, int len) {
 	if(block_count >= MAX_BLOCKS) {
 		ZX_SetLoadError("Tape has too many blocks");

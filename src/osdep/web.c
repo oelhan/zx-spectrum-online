@@ -110,6 +110,32 @@ EMSCRIPTEN_KEEPALIVE int zx_audio_take(void) {
 	return ZX_SoundTake();
 }
 
+/* Save state: writes a .z80 snapshot to zx_state_buffer() and returns
+   its length */
+static uint8_t state_buffer[Z80_SAVE_MAX];
+
+EMSCRIPTEN_KEEPALIVE uint8_t *zx_state_buffer(void) {
+	return state_buffer;
+}
+
+EMSCRIPTEN_KEEPALIVE int zx_save_state(void) {
+	return ZX_SaveZ80(state_buffer);
+}
+
+/* Restore a save state, keeping the inserted tape. Returns 1 on success */
+EMSCRIPTEN_KEEPALIVE int zx_restore_state(const uint8_t *data, int len) {
+	return ZX_RestoreZ80(data, len);
+}
+
+/* Tape position (next block), saved alongside a save state */
+EMSCRIPTEN_KEEPALIVE int zx_tape_pos(void) {
+	return ZX_TapePos();
+}
+
+EMSCRIPTEN_KEEPALIVE void zx_set_tape_pos(int pos) {
+	ZX_SetTapePos(pos);
+}
+
 /* Why the last zx_load() failed */
 EMSCRIPTEN_KEEPALIVE const char *zx_load_error(void) {
 	return ZX_LoadError();
