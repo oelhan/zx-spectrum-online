@@ -151,12 +151,16 @@ docker-web:
 serve:
 	python3 -m http.server -d dist 8000
 
+# In the emsdk image make finds the /emsdk/node directory on PATH before the
+# real node, so the Dockerfile passes NODE=$(command -v node)
+NODE ?= node
+
 test-web: dist/zxem.js
-	node tests/web/boot.cjs
-	node tests/web/io.cjs
-	node tests/web/loaders.cjs
-	node tests/web/sound.cjs
-	node tests/web/state.cjs
+	$(NODE) tests/web/boot.cjs
+	$(NODE) tests/web/io.cjs
+	$(NODE) tests/web/loaders.cjs
+	$(NODE) tests/web/sound.cjs
+	$(NODE) tests/web/state.cjs
 
 ## CPU test suite (exercises the z80emu core, whichever CPU zxem uses)
 

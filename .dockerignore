@@ -1,0 +1,13 @@
+# Only the sources the website build needs go into the build context
+.git
+.github
+dist
+obj
+objweb
+objhtml
+Win32
+Z80Emu_VS2015
+testfiles
+zxem
+tests/zxtest
+tests/zxtest.log

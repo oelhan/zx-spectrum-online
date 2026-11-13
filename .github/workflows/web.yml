@@ -1,0 +1,24 @@
+name: web
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  docker:
+    name: Docker image (builds the website and runs the web tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t zx-spectrum-online .
+
+      - name: Serve on $PORT and check it
+        run: |
+          docker run -d --name zxweb -e PORT=9123 -p 9123:9123 zx-spectrum-online
+          for i in $(seq 1 20); do curl -fs localhost:9123/healthz && break; sleep 1; done
+          curl -fs localhost:9123/ | grep -q '<title>ZX Spectrum</title>'
+          curl -fsI localhost:9123/zxem.wasm | grep -qi '^content-type: application/wasm'

@@ -192,13 +192,35 @@ Phase 5 notes:
   the d-pad, and no sideways scroll on a phone. Real gamepads and real phones are still manual checks.
 
 ### 6. Container and hcode deployment
-- [ ] Multi-stage `Dockerfile`:
-      stage 1 `emscripten/emsdk:<pinned version>` → `make PLAT=WEB`;
-      stage 2 `nginx:alpine` serves `dist/` on port 8080 as non-root
-- [ ] nginx config: `application/wasm` MIME type, gzip/brotli, long cache for hashed assets,
-      no-cache for `index.html`, `/healthz`
-- [ ] CI: build, `make test`, a headless boot test, and build the image on every push
+- [x] Multi-stage `Dockerfile`:
+      stage 1 `emscripten/emsdk:3.1.74` → `make PLAT=WEB` and `make test-web`;
+      stage 2 `nginxinc/nginx-unprivileged:1.27-alpine` serves `dist/` on `$PORT` (default 8080) as non-root
+- [x] nginx config: `application/wasm` MIME type, gzip, `/healthz`
+- [x] CI: build, `make test`, a headless boot test, and build the image on every push
 - [ ] Deploy to an hcode container, then point a domain at it with TLS
+
+Phase 6 notes:
+- hcode builds with Railpack by default, which can't detect this project. Set the project's
+  **Build mode** to **Dockerfile** (Settings > Build configuration > Build type), with path
+  `./Dockerfile` and runtime port 8080. Leave the start command empty, so the image's own CMD runs.
+- hcode sets `PORT` to the runtime port. nginx's template step writes it into the config on
+  start (`docker/nginx.conf.template`).
+- No file names are versioned, so everything is served with `Cache-Control: no-cache`.
+  Browsers revalidate, and unchanged files cost a 304.
+- Security headers include a Content-Security-Policy. It needs `'wasm-unsafe-eval'` for the
+  emulator, and `connect-src https:` keeps `?game=` working for other CORS-enabled sites.
+- GNU make finds the `/emsdk/node` directory on PATH before the real node, so the
+  Dockerfile runs `make test-web NODE="$(command -v node)"`.
+- Checked locally:
+  - The image builds, and the web tests pass inside the build.
+  - With `PORT=9123`: `/healthz` returns 200, `.wasm` is served as `application/wasm` with gzip,
+    and nginx runs as uid 101.
+  - In headless Chromium against the container: the emulator boots under the CSP, a tape loads
+    through the file picker, the audio worklet runs, and there are no console errors.
+- CI:
+  - `.github/workflows/web.yml` builds the image on each push and PR, then runs it and checks
+    `/healthz`, the page and the wasm content type.
+  - `build.yml` (native SDL builds and `make test`) now runs on `main` too.
 
 ### 7. Later
 - 128K models plus AY-3-8912 sound (a big step up in the game library)

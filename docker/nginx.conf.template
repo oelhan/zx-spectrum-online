@@ -1,0 +1,32 @@
+# Site config. ${PORT} is filled in when the container starts.
+server {
+    listen ${PORT};
+    listen [::]:${PORT};
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_comp_level 6;
+    gzip_min_length 1024;
+    gzip_types application/javascript text/javascript application/wasm application/json text/css image/svg+xml;
+
+    location / {
+        # File names aren't versioned, so browsers check for changes every
+        # time (a cheap 304 when nothing changed)
+        add_header Cache-Control "no-cache" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy strict-origin-when-cross-origin always;
+        # wasm-unsafe-eval lets the page compile zxem.wasm. ?game=<url> may
+        # fetch games from other HTTPS sites that allow it (CORS).
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:; object-src 'none'; base-uri 'none'; frame-ancestors 'self'" always;
+        try_files $uri $uri/ =404;
+    }
+
+    # Health check for the hosting platform
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+}

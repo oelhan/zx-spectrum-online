@@ -55,6 +55,17 @@ key press (browsers block audio before that), and the Sound button mutes it.
 - Game library: list games in `games/manifest.json` and they appear as cards
   under the emulator (see [games/README.md](games/README.md)).
 
+## Container
+
+```
+docker build -t zx-spectrum-online .
+docker run --rm -p 8080:8080 zx-spectrum-online    # http://localhost:8080
+```
+
+The build compiles the emulator and runs the web tests. nginx then serves the site on
+`$PORT` (default 8080), with a health check at `/healthz`. On hcode, set the build mode to
+Dockerfile and the runtime port to 8080, and leave the start command empty.
+
 See [PLAN.md](PLAN.md) for the roadmap.
 
 ## TODO list
