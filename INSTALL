@@ -1,6 +1,5 @@
 For Linux or Mac, install SDL 1.2 or SDL2 and type "make" to build zxem.
-See README.md for the build options (SDL=2, DEBUG=1, PLAT=HTML, make test).
+See README.md for the build options (SDL=2, DEBUG=1, PLAT=WEB, make test).
 
-For Windows, open a Visual C++ command prompt and then type:
-
-	nmake /f Makefile.nmake
+Native Windows build files (Visual Studio project, Makefile.nmake) are no
+longer included; on Windows, build under WSL or use the website.

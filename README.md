@@ -74,20 +74,20 @@ See [PLAN.md](PLAN.md) for the roadmap.
 - [x] Keyboard input  
 - [x] Spectrum 48k rom support  
 - [x] .scr image viewer
-- [x] Windows port  
+- [x] Windows port (Visual Studio files removed in this fork; use WSL)  
 - [x] OSX port  
 - [x] Linux  
 - [x] Android port  
 - [x] Html/Javascript port  (compile with make PLAT=HTML)
 - [x] Raspberry Pi port  
-- [ ] 'BEEP' sound output  
+- [x] 'BEEP' sound output  
 - [ ] Spectrum 128K support  
 - [ ] AY-3-8912 emulation  
-- [ ] Configurable gamepad  
-- [ ] TZX Support  
-- [ ] Z80 Snapshot support  
-- [ ] SNA Snapshot support  
-- [ ] TAP Support  
+- [x] Gamepad (website: Kempston, Sinclair or cursor)  
+- [x] TZX Support (ROM loader blocks)  
+- [x] Z80 Snapshot support (48K)  
+- [x] SNA Snapshot support (48K)  
+- [x] TAP Support  
 
 Please help to test and develop this project!
 

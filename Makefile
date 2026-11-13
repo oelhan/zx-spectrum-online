@@ -13,7 +13,7 @@
 
 ## Config
 
-# CPU core: z80core (default), z80emu, mz80 (mz80 has issues on 64-bit)
+# CPU core: z80core (default) or z80emu
 CPU ?= z80core
 SDL ?= 1
 PLAT ?= NATIVE

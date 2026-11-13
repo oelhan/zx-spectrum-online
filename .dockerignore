@@ -5,8 +5,6 @@ dist
 obj
 objweb
 objhtml
-Win32
-Z80Emu_VS2015
 testfiles
 zxem
 tests/zxtest

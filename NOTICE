@@ -15,7 +15,7 @@ ZXEMU - the emulator this project grew from
   Copyright (c) 2016 MikeDX. Described by its author as "free open source";
   the upstream repository has no licence file.
   Files: src/zxem/zxem.*, zxio.*, zxvid.*, src/osdep/sdl*.c, the original
-  Makefile, the Windows project files.
+  Makefile.
 
 z80core - Z80 CPU core used by the website
   Written by Adrian Brown for the TZT ZX Spectrum Emulator. No licence is
@@ -27,20 +27,10 @@ z80emu - Z80 CPU core used by the CPU tests
   want with it."
   Files: src/cpu/z80emu/
 
-MZ80 - not used by any build
-  Copyright 1996-1999 Neil Bradley, all rights reserved. May not be sold or
-  used in a commercial package without the author's written permission; see
-  the licence at the top of src/cpu/mz80/mz80.c. Planned for removal.
-
 ZX Spectrum 48K ROM
   Copyright Amstrad. Amstrad allows the Spectrum ROMs to be distributed for
   use with emulators; they are not covered by the MIT licence.
   File: roms/48k.rom
-
-SDL
-  Copyright (C) 1997-2012 Sam Lantinga. SDL 1.2 is under the GNU LGPL 2.1,
-  SDL2 under the zlib licence. Used only by the native builds.
-  Files: Win32/SDL-1.2.15/, the src/thirdparty/ submodules
 
 ZEXDOC / ZEXALL - Z80 instruction exercisers used by `make test`
   Copyright (C) 1994 Frank D. Cringle, under the GNU GPL.

@@ -9,7 +9,7 @@ Forked from [MikeDX/z80emu](https://github.com/MikeDX/z80emu) (remote `upstream`
 
 Things that already work:
 
-- Z80 CPU (`src/cpu/z80core`, Adrian Brown's core). Alternatives are `z80emu` and `mz80`.
+- Z80 CPU (`src/cpu/z80core`, Adrian Brown's core). The alternative is `z80emu` (used by `make test`).
 - 48K ROM boots, and the screen renders: pixels, attributes, bright and flash.
 - Keyboard matrix input.
 - `make PLAT=HTML` builds through Emscripten with SDL.
@@ -79,9 +79,9 @@ int      zx_load(const uint8_t *data, int len, const char *ext); // tap/sna/z80
 ### 0. Repo housekeeping
 - [x] New local repo `zxspectrum-web`, upstream history kept, `upstream` remote
 - [x] Add a NOTICE file crediting MikeDX, Adrian Brown and Lin Ke-Fong (licensing: see Risks). Our own work is MIT (LICENSE)
-- [ ] Remove things the web project doesn't need: `Win32/`, `Z80Emu_VS2015/`, `Makefile.nmake`,
-      SDL submodules, `mz80` (licence restricts commercial use)
-- [ ] Create the remote (GitHub or wherever hcode deploys from) and push
+- [x] Remove things the web project doesn't need: `Win32/`, `Z80Emu_VS2015/`, `Makefile.nmake`,
+      SDL submodules, `mz80` (licence restricts commercial use), and the unused dummy `src/cpu/cpuintf.c`
+- [x] Create the remote (github.com/oelhan/zx-spectrum-online, which hcode deploys from) and push
 
 ### 1. Headless WASM build that boots
 - [x] `src/osdep/web.c` with the exported API above. Move the main loop out of `ZX_main` so
@@ -246,7 +246,7 @@ Phase 6 notes:
    and Lin Ke-Fong (z80emu) in a NOTICE file and on the site. Our own work is under MIT
    (LICENSE), and NOTICE says which parts it doesn't cover. Upstream still has no
    licence file, so optionally open a GitHub issue asking MikeDX to add one.
-   `mz80` gets removed, since its licence restricts commercial use.
+   `mz80` was removed in phase 0, since its licence restricts commercial use.
 2. **Game copyright.** Amstrad lets emulators distribute the 48K ROM. Games are a
    different matter. Host only titles whose rights holders allow distribution (ZXDB/Spectrum
    Computing marks these) or homebrew titles with permission. Let users load their own files locally.

@@ -1,6 +1,6 @@
 /* cpuintf.c
  * 
- * CPU Interface (mz80)
+ * CPU Interface (z80emu)
  *
  * Allows ZXEM to be used with different cpu cores
  *
