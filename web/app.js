@@ -201,11 +201,14 @@ createZXEM().then(async (zx) => {
 
 	// --- Game library (games/manifest.json) --------------------------------
 
+	// Returns the listed games, and the entry to start on page load if the
+	// manifest names one with "start"
 	async function loadLibrary() {
 		let games = [];
+		let start = null;
 		try {
 			const res = await fetch('games/manifest.json', { cache: 'no-cache' });
-			if (res.ok) games = (await res.json()).games ?? [];
+			if (res.ok) ({ games = [], start = null } = await res.json());
 		} catch {
 			// No library is fine: games can still be loaded from files
 		}
@@ -242,7 +245,7 @@ createZXEM().then(async (zx) => {
 			list.append(card);
 		}
 		$('library').hidden = games.length === 0;
-		return games;
+		return { games, start: games.find((g) => g.file === start) ?? null };
 	}
 
 	// --- Save states -------------------------------------------------------
@@ -328,8 +331,10 @@ createZXEM().then(async (zx) => {
 	input.focusSink();
 	requestAnimationFrame(tick);
 
-	// ?game=<url> loads a game on start, with its library details if listed
-	const games = await loadLibrary();
+	// ?game=<url> loads a game on start, with its library details if listed.
+	// Otherwise the library's start entry (e.g. a demo) runs, if it has one.
+	const { games, start } = await loadLibrary();
 	const game = new URLSearchParams(location.search).get('game');
 	if (game) loadFromUrl(game, games.find((g) => 'games/' + g.file === game) ?? null);
+	else if (start) loadFromUrl('games/' + start.file, start);
 });

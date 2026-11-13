@@ -9,6 +9,7 @@ releases marked "distribution permitted".
 
 ```json
 {
+  "start": "example.tap",
   "games": [
     {
       "title": "Example Game",
@@ -31,5 +32,9 @@ releases marked "distribution permitted".
 | `cover` | no | Image relative to this folder, ideally 4:3 (a Spectrum screen is 256x192) |
 | `controls` | no | Shown under the emulator while the game runs |
 | `joystick` | no | Selected when the game loads: `keys`, `kempston`, `sinclair` or `cursor` |
+
+`start` is optional: the entry with that `file` loads when the page opens
+(for example a demo), unless the link already names a game with `?game=`.
+Browsers keep it silent until the visitor clicks or presses a key.
 
 A game can be linked directly as `/?game=games/<file>`.
