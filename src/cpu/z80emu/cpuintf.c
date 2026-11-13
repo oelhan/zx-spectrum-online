@@ -110,3 +110,49 @@ uint16_t CPU_GetReg(uint8_t cpuid, char *reg) {
 			return 0;
 	}
 }
+
+/* Note: z80emu keeps PC in a local while Z80Emulate() runs, so these only
+   see the real PC between calls (the tape trap needs z80core) */
+void CPU_GetRegs(uint8_t cpuid, CPU_Regs *regs) {
+	Z80_STATE *state = zxcpu[cpuid];
+
+	regs->af = state->registers.word[Z80_AF];
+	regs->bc = state->registers.word[Z80_BC];
+	regs->de = state->registers.word[Z80_DE];
+	regs->hl = state->registers.word[Z80_HL];
+	regs->af_ = state->alternates[Z80_AF];
+	regs->bc_ = state->alternates[Z80_BC];
+	regs->de_ = state->alternates[Z80_DE];
+	regs->hl_ = state->alternates[Z80_HL];
+	regs->ix = state->registers.word[Z80_IX];
+	regs->iy = state->registers.word[Z80_IY];
+	regs->sp = state->registers.word[Z80_SP];
+	regs->pc = state->pc;
+	regs->i = state->i;
+	regs->r = state->r;
+	regs->iff1 = state->iff1;
+	regs->iff2 = state->iff2;
+	regs->im = state->im;
+}
+
+void CPU_SetRegs(uint8_t cpuid, const CPU_Regs *regs) {
+	Z80_STATE *state = zxcpu[cpuid];
+
+	state->registers.word[Z80_AF] = regs->af;
+	state->registers.word[Z80_BC] = regs->bc;
+	state->registers.word[Z80_DE] = regs->de;
+	state->registers.word[Z80_HL] = regs->hl;
+	state->alternates[Z80_AF] = regs->af_;
+	state->alternates[Z80_BC] = regs->bc_;
+	state->alternates[Z80_DE] = regs->de_;
+	state->alternates[Z80_HL] = regs->hl_;
+	state->registers.word[Z80_IX] = regs->ix;
+	state->registers.word[Z80_IY] = regs->iy;
+	state->registers.word[Z80_SP] = regs->sp;
+	state->pc = regs->pc;
+	state->i = regs->i;
+	state->r = regs->r;
+	state->iff1 = regs->iff1;
+	state->iff2 = regs->iff2;
+	state->im = regs->im;
+}

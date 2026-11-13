@@ -32,9 +32,17 @@
 		background: #000;
 		max-width: 100%;
 	}
+	body.dragging main {
+		outline: 3px dashed var(--muted);
+		outline-offset: -12px;
+	}
 	#status {
 		color: var(--muted);
 		font-size: 14px;
+	}
+	#hint {
+		color: var(--muted);
+		font-size: 13px;
 	}
 	button, select {
 		font: inherit;
@@ -46,6 +54,8 @@
 <main>
 	<canvas id="screen" width="256" height="192"></canvas>
 	<div>
+		<button id="load">Load game…</button>
+		<input id="file" type="file" accept=".tap,.tzx,.sna,.z80" hidden>
 		<button id="reset">Reset</button>
 		<label>Arrow keys:
 			<select id="arrows">
@@ -55,6 +65,7 @@
 		</label>
 	</div>
 	<div id="status">Loading…</div>
+	<div id="hint">Drop a .tap, .tzx, .sna or .z80 file anywhere on the page to play it.</div>
 </main>
 <script src="zxem.js"></script>
 <script src="app.js"></script>

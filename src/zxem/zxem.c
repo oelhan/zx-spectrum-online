@@ -186,6 +186,12 @@ int ZX_Init(void) {
 	return 1;
 }
 
+/* .scr screen dumps are shown by the viewer, anything else is a game */
+static int is_scr(const char *path) {
+	const char *e = strrchr(path, '.');
+	return e && (e[1]|0x20)=='s' && (e[2]|0x20)=='c' && (e[3]|0x20)=='r' && !e[4];
+}
+
 int ZX_main(int argc, char *argv[])
 {
 	int i =0;
@@ -195,7 +201,14 @@ int ZX_main(int argc, char *argv[])
 		return 1;
 	}
 
-	if(argc>1) {
+	if(argc>1 && !is_scr(argv[1])) {
+		// zxem game.tap / .tzx / .sna / .z80
+		printf("Loading game: %s\n",argv[1]);
+		if(!ZX_LoadFile(argv[1])) {
+			ZX_End();
+			return 1;
+		}
+	} else if(argc>1) {
 		running = 1;
 		i = 0;
 		while(++i<argc) {
@@ -206,9 +219,9 @@ int ZX_main(int argc, char *argv[])
 			// 	ZX_Input();
 			// }
 		}
+		ZX_Reset();
 	}
 
-	ZX_Reset();
 	running = 1;
 
 #ifndef EMSCRIPTEN

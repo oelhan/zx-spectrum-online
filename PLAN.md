@@ -113,11 +113,26 @@ Phase 2 notes:
   z80emu stays only for `make test`.
 
 ### 3. Load games
-- [ ] `.sna` (48K) and `.z80` (v1 compressed, plus 48K-mode v2/v3)
-- [ ] `.tap` with a ROM trap on `LD-BYTES` (`0x0556`) for instant loading. Auto-type `LOAD ""`
-- [ ] `.tzx` (standard-speed blocks through the same trap). Turbo loaders can come later
-- [ ] JavaScript: file picker, drag-and-drop, `?game=<url>` query parameter
+- [x] `.sna` (48K) and `.z80` (v1 compressed, plus 48K-mode v2/v3)
+- [x] `.tap` with a ROM trap on `LD-BYTES` (`0x0556`) for instant loading. Auto-type `LOAD ""`
+- [x] `.tzx` (standard-speed blocks through the same trap). Turbo loaders can come later
+- [x] JavaScript: file picker, drag-and-drop, `?game=<url>` query parameter
 - [ ] **Done when:** a known freeware TAP, SNA and Z80 each load and are playable
+
+Phase 3 notes:
+- `src/zxem/zxload.c` handles snapshots and the dispatcher. `src/zxem/zxtape.c` handles tapes.
+  Both are also used by the native build (`./zxem game.tap`).
+- Inserting a tape resets the machine, runs the ROM boot without waiting in real time,
+  and types `LOAD ""`. Every ROM load (multi-part games included) is served
+  instantly from the tape image through the trap in `readbyte()`.
+- Games with custom or turbo loaders don't call the ROM's LD-BYTES, so they won't
+  load from TAP/TZX. Their `.z80`/`.sna` versions work. Fixing this means real
+  EAR-bit tape playback (phase 7).
+- The tape trap needs z80core, because z80emu doesn't expose the live PC.
+- `tests/web/loaders.cjs` builds its own TAP, TZX, SNA and Z80 (v1 and v3) files and
+  checks they run. With a directory argument it also writes them out for manual tests.
+- Still to do: try real game files. The test images were written from the
+  same reading of the formats as the loaders.
 
 ### 4. Sound
 - [ ] Record beeper level changes against T-state timestamps during a frame, then resample to 44.1/48 kHz

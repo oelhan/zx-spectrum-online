@@ -6,6 +6,11 @@
 
 
 uint8_t readbyte(uint16_t addr) {
+	/* Opcode fetch of the ROM's LD-BYTES routine: load from the tape image
+	   instead (z80core reads the opcode before it increments PC) */
+	if(addr==TAPE_TRAP_ADDR && tape_loaded && CPU_GetReg(CPU_Handle,"PC")==addr) {
+		return ZX_TapeTrap();
+	}
     return zxmem[addr];
 }
 
@@ -183,6 +188,18 @@ void ZX_KeyInit(void) {
 	kempston = 0;
 }
 
+/* Press or release a ZX_KEY_* key in the keyboard matrix */
+void ZX_KeyDown(int key) {
+	if(key>0 && key<ZX_KEY_LAST) {
+		indata[keyaddr[key]]&=~keybuf[key];
+	}
+}
+
+void ZX_KeyUp(int key) {
+	if(key>0 && key<ZX_KEY_LAST) {
+		indata[keyaddr[key]]|=keybuf[key];
+	}
+}
 
 void ZX_Input(void) {
 	OSD_Input();

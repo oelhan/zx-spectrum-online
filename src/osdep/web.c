@@ -82,12 +82,20 @@ EMSCRIPTEN_KEEPALIVE void zx_joy(int bits) {
 
 /* key is a ZX_KEY_* value (see zxio.h), down is 1 for pressed */
 EMSCRIPTEN_KEEPALIVE void zx_key(int key, int down) {
-	if(key<=0 || key>=ZX_KEY_LAST) {
-		return;
-	}
 	if(down) {
-		indata[keyaddr[key]]&=~keybuf[key];
+		ZX_KeyDown(key);
 	} else {
-		indata[keyaddr[key]]|=keybuf[key];
+		ZX_KeyUp(key);
 	}
+}
+
+/* Load a game image already copied into WASM memory. ext is the file
+   extension (tap, tzx, sna or z80). Returns 1 on success */
+EMSCRIPTEN_KEEPALIVE int zx_load(const uint8_t *data, int len, const char *ext) {
+	return ZX_LoadData(data, len, ext);
+}
+
+/* Why the last zx_load() failed */
+EMSCRIPTEN_KEEPALIVE const char *zx_load_error(void) {
+	return ZX_LoadError();
 }

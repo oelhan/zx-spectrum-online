@@ -29,7 +29,8 @@ make PLAT=HTML  # Emscripten build (zxem.html)
 make test       # build and run the CPU test suite
 ```
 
-Run `./zxem` from the repository root (it loads `roms/48k.rom`).
+Run `./zxem` from the repository root (it loads `roms/48k.rom`). To start a game,
+pass it on the command line: `./zxem game.tap` (also `.tzx`, `.sna`, `.z80`; 48K only).
 
 ## Website build
 
@@ -39,8 +40,11 @@ The browser version builds with Emscripten into `dist/` (no SDL):
 make docker-web       # build in the emscripten/emsdk Docker image (no local emsdk needed)
 make PLAT=WEB         # or build with a local emcc
 make serve            # http://localhost:8000
-make test-web         # boot the ROM in Node and check the copyright message appears
+make test-web         # boot, I/O and loader tests in Node
 ```
+
+On the page, use "Load game…", drop a file onto the page, or open
+`/?game=<url>` to load a game from a URL.
 
 See [PLAN.md](PLAN.md) for the roadmap.
 

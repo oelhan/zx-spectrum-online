@@ -126,6 +126,66 @@ createZXEM().then((zx) => {
 		e.target.blur();
 	});
 
+	// Copy the file into WASM memory and hand it to the C loaders
+	function loadGame(name, bytes) {
+		const ext = name.includes('.') ? name.split('.').pop() : '';
+		const ptr = zx._malloc(bytes.length);
+		zx.HEAPU8.set(bytes, ptr);
+		releaseAll();
+		const ok = zx.ccall('zx_load', 'number', ['number', 'number', 'string'],
+			[ptr, bytes.length, ext]);
+		zx._free(ptr);
+		statusEl.textContent = ok
+			? `Playing ${name}`
+			: `Could not load ${name}: ${zx.UTF8ToString(zx._zx_load_error())}`;
+		// The loaders may run many frames (tapes boot and type LOAD "");
+		// don't try to catch up on that time
+		last = performance.now();
+		acc = 0;
+	}
+
+	const fileEl = document.getElementById('file');
+	document.getElementById('load').addEventListener('click', (e) => {
+		e.target.blur();
+		fileEl.click();
+	});
+	fileEl.addEventListener('change', async () => {
+		const file = fileEl.files[0];
+		if (file) loadGame(file.name, new Uint8Array(await file.arrayBuffer()));
+		fileEl.value = '';
+	});
+
+	// Drag and drop anywhere on the page
+	let dragDepth = 0;
+	window.addEventListener('dragenter', (e) => {
+		e.preventDefault();
+		if (dragDepth++ === 0) document.body.classList.add('dragging');
+	});
+	window.addEventListener('dragleave', () => {
+		if (--dragDepth === 0) document.body.classList.remove('dragging');
+	});
+	window.addEventListener('dragover', (e) => e.preventDefault());
+	window.addEventListener('drop', async (e) => {
+		e.preventDefault();
+		dragDepth = 0;
+		document.body.classList.remove('dragging');
+		const file = e.dataTransfer.files[0];
+		if (file) loadGame(file.name, new Uint8Array(await file.arrayBuffer()));
+	});
+
+	// ?game=<url> loads a game on start (same origin, or a server allowing CORS)
+	async function loadFromUrl(url) {
+		statusEl.textContent = `Fetching ${url}…`;
+		try {
+			const res = await fetch(url);
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const name = new URL(url, location.href).pathname.split('/').pop();
+			loadGame(name, new Uint8Array(await res.arrayBuffer()));
+		} catch (err) {
+			statusEl.textContent = `Could not fetch ${url}: ${err.message}`;
+		}
+	}
+
 	let last = performance.now();
 	let acc = 0;
 	function tick(now) {
@@ -143,4 +203,7 @@ createZXEM().then((zx) => {
 	}
 	statusEl.textContent = 'Ready. Type on your keyboard.';
 	requestAnimationFrame(tick);
+
+	const game = new URLSearchParams(location.search).get('game');
+	if (game) loadFromUrl(game);
 });

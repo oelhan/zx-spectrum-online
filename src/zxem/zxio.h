@@ -83,6 +83,8 @@ void output(uint16_t port, uint8_t data);
 
 // Keyboard handling
 void ZX_KeyInit(void);
+void ZX_KeyDown(int key);
+void ZX_KeyUp(int key);
 void ZX_Input(void);
 
 #endif

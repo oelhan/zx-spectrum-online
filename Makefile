@@ -8,7 +8,7 @@
 # make PLAT=WEB      Emscripten build for the website (dist/), no SDL
 # make docker-web    PLAT=WEB build inside the emscripten/emsdk image
 # make serve         serve dist/ on http://localhost:8000
-# make test-web      run the PLAT=WEB build in Node: ROM boot and I/O checks
+# make test-web      run the PLAT=WEB build in Node: boot, I/O and loader checks
 # make test          build and run the CPU test suite (z80emu core)
 
 ## Config
@@ -51,9 +51,9 @@ CXX = em++
 AR = emar
 OBJDIR = objweb
 SDL = 0
-WEB_EXPORTS = _zx_init,_zx_reset,_zx_run_frame,_zx_framebuffer,_zx_fb_width,_zx_fb_height,_zx_key,_zx_joy
+WEB_EXPORTS = _zx_init,_zx_reset,_zx_run_frame,_zx_framebuffer,_zx_fb_width,_zx_fb_height,_zx_key,_zx_joy,_zx_load,_zx_load_error,_malloc,_free
 LINKFLAGS += -s MODULARIZE=1 -s EXPORT_NAME=createZXEM -s ENVIRONMENT=web,node \
-	-s EXPORTED_FUNCTIONS=$(WEB_EXPORTS) -s EXPORTED_RUNTIME_METHODS=HEAPU8 \
+	-s EXPORTED_FUNCTIONS=$(WEB_EXPORTS) -s EXPORTED_RUNTIME_METHODS=HEAPU8,ccall,UTF8ToString \
 	--embed-file roms/48k.rom@roms/48k.rom
 TARGET := dist/zxem.js
 else
@@ -146,6 +146,7 @@ serve:
 test-web: dist/zxem.js
 	node tests/web/boot.cjs
 	node tests/web/io.cjs
+	node tests/web/loaders.cjs
 
 ## CPU test suite (exercises the z80emu core, whichever CPU zxem uses)
 

@@ -132,3 +132,47 @@ uint16_t CPU_GetReg(uint8_t cpuid, char *reg) {
 	
 	return 0;
 }
+
+void CPU_GetRegs(uint8_t cpuid, CPU_Regs *regs) {
+	void *core = zxcpu[cpuid];
+
+	regs->af = Z80CORE_GetWordRegister(core, eREG_AF);
+	regs->bc = Z80CORE_GetWordRegister(core, eREG_BC);
+	regs->de = Z80CORE_GetWordRegister(core, eREG_DE);
+	regs->hl = Z80CORE_GetWordRegister(core, eREG_HL);
+	regs->af_ = Z80CORE_GetWordRegister(core, eREG_ALT_AF);
+	regs->bc_ = Z80CORE_GetWordRegister(core, eREG_ALT_BC);
+	regs->de_ = Z80CORE_GetWordRegister(core, eREG_ALT_DE);
+	regs->hl_ = Z80CORE_GetWordRegister(core, eREG_ALT_HL);
+	regs->ix = Z80CORE_GetWordRegister(core, eREG_IX);
+	regs->iy = Z80CORE_GetWordRegister(core, eREG_IY);
+	regs->sp = Z80CORE_GetWordRegister(core, eREG_SP);
+	regs->pc = Z80CORE_GetWordRegister(core, eREG_PC);
+	regs->i = Z80CORE_GetByteRegister(core, eREG_I);
+	regs->r = Z80CORE_GetByteRegister(core, eREG_R);
+	regs->iff1 = Z80CORE_GetIFF1(core);
+	regs->iff2 = Z80CORE_GetIFF2(core);
+	regs->im = Z80CORE_GetIMMode(core);
+}
+
+void CPU_SetRegs(uint8_t cpuid, const CPU_Regs *regs) {
+	void *core = zxcpu[cpuid];
+
+	Z80CORE_SetWordRegister(core, eREG_AF, regs->af);
+	Z80CORE_SetWordRegister(core, eREG_BC, regs->bc);
+	Z80CORE_SetWordRegister(core, eREG_DE, regs->de);
+	Z80CORE_SetWordRegister(core, eREG_HL, regs->hl);
+	Z80CORE_SetWordRegister(core, eREG_ALT_AF, regs->af_);
+	Z80CORE_SetWordRegister(core, eREG_ALT_BC, regs->bc_);
+	Z80CORE_SetWordRegister(core, eREG_ALT_DE, regs->de_);
+	Z80CORE_SetWordRegister(core, eREG_ALT_HL, regs->hl_);
+	Z80CORE_SetWordRegister(core, eREG_IX, regs->ix);
+	Z80CORE_SetWordRegister(core, eREG_IY, regs->iy);
+	Z80CORE_SetWordRegister(core, eREG_SP, regs->sp);
+	Z80CORE_SetWordRegister(core, eREG_PC, regs->pc);
+	Z80CORE_SetByteRegister(core, eREG_I, regs->i);
+	Z80CORE_SetByteRegister(core, eREG_R, regs->r);
+	Z80CORE_SetIFF1(core, regs->iff1);
+	Z80CORE_SetIFF2(core, regs->iff2);
+	Z80CORE_SetIMMode(core, regs->im);
+}
