@@ -5,11 +5,11 @@
  *
  * Cross platform ZX Spectrum emulator
  *
- * Beeper sound. Each change of the EAR/MIC output is timed in T-states and
- * turned into samples at the host's rate: a sample is the average speaker
- * level over its slice of time (a box filter, so fast toggling doesn't
- * alias badly). A DC blocker then centres the wave around 0, like the
- * capacitor between the ULA and the speaker.
+ * Beeper and AY sound. Each change of the EAR/MIC output, and each AY
+ * register write, is timed in T-states and turned into samples at the
+ * host's rate: a sample is the average level over its slice of time (a box
+ * filter, so fast changes don't alias badly). A DC blocker then centres
+ * the wave around 0, like the capacitor in front of the speaker.
  */
 
 #include "zxem.h"
@@ -20,6 +20,9 @@
 // Speaker level for the EAR and MIC bits. MIC is only faintly audible.
 #define LEVEL_EAR 0.5f
 #define LEVEL_MIC 0.05f
+
+// Level of each AY channel at full volume
+#define LEVEL_AY 0.25f
 
 // DC blocker cut-off in Hz
 #define DC_CUTOFF 10
@@ -34,6 +37,30 @@ static float level = 0;
 static uint32_t last_t = 0;
 
 static float dc_r, dc_in = 0, dc_out = 0;
+
+// AY ticks are fractions of a T-state apart; average them per sample
+static double ay_phase = 0;
+static float ay_sum = 0, ay_last = 0;
+static int ay_n = 0;
+
+/* Run the AY for t T-states */
+static void ay_run(double t) {
+	ay_phase += t * AY_TICK_HZ / CPU_HZ;
+	while(ay_phase >= 1) {
+		ay_phase -= 1;
+		ay_last = AY_Tick();
+		ay_sum += ay_last;
+		ay_n++;
+	}
+}
+
+/* The AY's average output since the last sample */
+static float ay_level(void) {
+	float l = ay_n ? ay_sum / ay_n : ay_last;
+	ay_sum = 0;
+	ay_n = 0;
+	return l * LEVEL_AY;
+}
 
 void ZX_SoundInit(int rate) {
 	tstates_per_sample = rate > 0 ? (double)CPU_HZ/rate : 0;
@@ -58,7 +85,8 @@ static void advance(void) {
 
 	while(pos + dt >= tstates_per_sample) {
 		double part = tstates_per_sample - pos;
-		s = (float)((area + level*part) / tstates_per_sample);
+		ay_run(part);
+		s = (float)((area + level*part) / tstates_per_sample) + ay_level();
 		dc_out = s - dc_in + dc_r*dc_out;
 		dc_in = s;
 		// When nobody takes the samples (e.g. while a tape autoloads) drop them
@@ -71,6 +99,7 @@ static void advance(void) {
 	}
 	area += level*dt;
 	pos += dt;
+	ay_run(dt);
 }
 
 void ZX_SoundOutput(uint8_t data) {
@@ -80,6 +109,12 @@ void ZX_SoundOutput(uint8_t data) {
 		advance();
 		level = l;
 	}
+}
+
+/* AY register write: the samples so far use the old value */
+void ZX_SoundAYWrite(uint8_t value) {
+	advance();
+	AY_Write(value);
 }
 
 void ZX_SoundFrame(void) {

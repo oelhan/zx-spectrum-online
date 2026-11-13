@@ -82,7 +82,7 @@ See [PLAN.md](PLAN.md) for the roadmap.
 - [x] Raspberry Pi port  
 - [x] 'BEEP' sound output  
 - [ ] Spectrum 128K support  
-- [ ] AY-3-8912 emulation  
+- [x] AY-3-8912 emulation (128K ports, also used by 48K AY interfaces)  
 - [x] Gamepad (website: Kempston, Sinclair or cursor)  
 - [x] TZX Support (ROM loader blocks)  
 - [x] Z80 Snapshot support (48K)  

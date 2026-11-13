@@ -60,6 +60,11 @@ uint8_t input(uint16_t port) {
 		return data;
 	}
 
+	/* AY: read back the selected register */
+	if((port & AY_PORT_MASK) == AY_PORT_SELECT) {
+		return AY_Read();
+	}
+
 	/* Kempston joystick: A5, A6 and A7 low (port 0x1F) */
 	if(!(port & 0xE0)) {
 		return kempston;
@@ -75,6 +80,13 @@ void output(uint16_t port, uint8_t data) {
 		border = data & 0x07;
 		ZX_SoundOutput(data);
 		ula_out = data;
+	}
+
+	/* AY: 0xFFFD selects a register, 0xBFFD writes it */
+	if((port & AY_PORT_MASK) == AY_PORT_SELECT) {
+		AY_Select(data);
+	} else if((port & AY_PORT_MASK) == AY_PORT_DATA) {
+		ZX_SoundAYWrite(data);
 	}
 }
 // Setup keyboard array

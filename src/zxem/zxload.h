@@ -27,9 +27,10 @@ const char *ZX_LoadError(void);
 int ZX_LoadSNA(const uint8_t *data, int len);
 int ZX_LoadZ80(const uint8_t *data, int len);
 
-// Save states: a .z80 snapshot of the machine. Restoring keeps the tape.
-// Worst case: header, RAM where every ED pair costs 4 bytes, end marker.
-#define Z80_SAVE_MAX (30 + 49152*2 + 4)
+// Save states: a version 3 .z80 snapshot of the machine (48K with AY).
+// Restoring keeps the tape. Worst case: header, then three pages where
+// every pair of EDs packs to 4 bytes.
+#define Z80_SAVE_MAX (86 + 3*(3 + 0x4000*2))
 int ZX_SaveZ80(uint8_t *out);
 int ZX_RestoreZ80(const uint8_t *data, int len);
 

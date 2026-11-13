@@ -16,6 +16,9 @@ void ZX_SoundInit(int rate);
 // Called when port 0xFE is written, with the byte written
 void ZX_SoundOutput(uint8_t data);
 
+// Called for writes to the AY data port (0xBFFD)
+void ZX_SoundAYWrite(uint8_t value);
+
 // Called at the end of every frame, and after the CPU is reset
 void ZX_SoundFrame(void);
 void ZX_SoundReset(void);

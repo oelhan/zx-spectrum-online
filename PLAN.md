@@ -229,7 +229,25 @@ Phase 6 notes:
   - `build.yml` (native SDL builds and `make test`) now runs on `main` too.
 
 ### 7. Later
-- 128K models plus AY-3-8912 sound (a big step up in the game library)
+- [x] AY-3-8912 sound (done 2026-11-13, see notes below)
+- 128K models: memory paging on port 0x7FFD, the two 128K ROMs, 128K timing and
+  snapshots (a big step up in the game library, and needed for Little Computer People)
+
+AY notes:
+- `src/zxem/zxay.c` emulates the chip:
+  - three tone channels, the 17-bit noise LFSR, and the 16-step envelope with all 16 shapes;
+  - the mixer, and Fuse's measured volume levels.
+- It's clocked at 1.7734 MHz and stepped at clock/8 inside `zxsound.c`. Its output is
+  averaged per sample and mixed with the beeper.
+- Register writes are timed to the T-state like beeper changes, so sample playback through
+  the volume registers works.
+- Ports are decoded like the 128K: `(port & 0xC002) == 0xC000` selects (and reads back),
+  and `0x8000` writes. 48K AY interfaces use the same ports, which is how Big Things plays music.
+- `.z80` v2/v3 snapshots restore the AY registers. Save states are now `.z80` v3
+  (48K + AY) so they keep them.
+- `tests/web/ay.cjs` checks tone pitch, the volume curve, noise, envelope pitch and one-shot,
+  register read-back, reset, and save state round trips.
+- Cost: about 0.07 ms per frame.
 - Memory contention for timing-sensitive demos and multicolour effects
 - Turbo TZX loaders through real EAR-bit tape emulation
 - Optional backend for user accounts, high scores and cloud saves

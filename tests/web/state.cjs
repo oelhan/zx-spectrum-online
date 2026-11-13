@@ -84,7 +84,8 @@ createZXEM().then((zx) => {
 	frames(5);
 	const screen = fb();
 	const state = save();
-	check('save state is a compressed .z80', state.length < 30 + 49152 && (state[12] & 0x20) !== 0,
+	check('save state is a compressed version 3 .z80',
+		state.length < 86 + 49152 && state[6] === 0 && state[7] === 0 && state[30] === 54,
 		`${state.length} bytes`);
 
 	zx._zx_reset();

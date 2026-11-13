@@ -5,7 +5,7 @@
       "title": "Big Things",
       "author": "Speccy.pl",
       "file": "BigThings.tap",
-      "controls": "None, it's a demo. Its music needs the AY sound chip, which isn't emulated yet."
+      "controls": "None, it's a demo. Click or press a key to hear its AY music."
     },
     {
       "title": "3D Stock Car Championship",

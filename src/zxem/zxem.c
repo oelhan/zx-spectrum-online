@@ -142,6 +142,7 @@ void ZX_Frame(void) {
 
 void ZX_Reset(void) {
 	CPU_Reset(CPU_Handle);
+	AY_Reset();
 	ZX_SoundReset();
 	total = 0;
 	next_total = 0;

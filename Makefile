@@ -8,7 +8,7 @@
 # make PLAT=WEB      Emscripten build for the website (dist/), no SDL
 # make docker-web    PLAT=WEB build inside the emscripten/emsdk image
 # make serve         serve dist/ on http://localhost:8000
-# make test-web      run the PLAT=WEB build in Node: boot, I/O, loader, sound and save state checks
+# make test-web      run the PLAT=WEB build in Node: boot, I/O, loader, sound, AY and save state checks
 # make test          build and run the CPU test suite (z80emu core)
 
 ## Config
@@ -162,6 +162,7 @@ test-web: dist/zxem.js
 	$(NODE) tests/web/loaders.cjs
 	$(NODE) tests/web/sound.cjs
 	$(NODE) tests/web/state.cjs
+	$(NODE) tests/web/ay.cjs
 
 ## CPU test suite (exercises the z80emu core, whichever CPU zxem uses)
 

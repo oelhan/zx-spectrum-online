@@ -109,7 +109,7 @@ int ZX_LoadZ80(const uint8_t *data, int len) {
 	static uint8_t ram[RAM_SIZE];
 	CPU_Regs regs;
 	uint8_t flags;
-	int extlen, hw, pos, blen, page, offset;
+	int extlen, hw, pos, blen, page, offset, i;
 	int pages_seen = 0;
 
 	if(len < 30) {
@@ -156,7 +156,7 @@ int ZX_LoadZ80(const uint8_t *data, int len) {
 	}
 
 	// Version 2 (23 byte extra header) or 3 (54 or 55)
-	if(len < 35) {
+	if(len < 55) {
 		ZX_SetLoadError("Corrupt .z80 snapshot (too short)");
 		return 0;
 	}
@@ -220,6 +220,12 @@ int ZX_LoadZ80(const uint8_t *data, int len) {
 	}
 
 	start_snapshot(ram, &regs, flags >> 1);
+
+	// AY registers (bytes 38-54 of the v2/v3 header), after the reset
+	for(i=0; i<16; i++) {
+		AY_SetReg(i, data[39+i]);
+	}
+	AY_Select(data[38]);
 	return 1;
 }
 
@@ -261,23 +267,26 @@ static int z80_pack(const uint8_t *src, int len, uint8_t *dst) {
 	return d;
 }
 
-/* Save the machine as a compressed version 1 .z80 snapshot. out must hold
-   Z80_SAVE_MAX bytes. Returns the length written. */
+/* Save the machine as a version 3 .z80 snapshot (48K with AY), so the AY
+   registers are kept. out must hold Z80_SAVE_MAX bytes. Returns the length
+   written. */
 int ZX_SaveZ80(uint8_t *out) {
+	// .z80 page numbers for 0x4000, 0x8000 and 0xC000
+	static const uint8_t pages[3] = { 8, 4, 5 };
 	CPU_Regs regs;
-	int len;
+	int len, n, i;
 
 	CPU_GetRegs(CPU_Handle, &regs);
-	memset(out, 0, 30);
+	memset(out, 0, 86);
 	out[0] = regs.af >> 8;
 	out[1] = regs.af & 0xFF;
 	out[2] = regs.bc & 0xFF;  out[3] = regs.bc >> 8;
 	out[4] = regs.hl & 0xFF;  out[5] = regs.hl >> 8;
-	out[6] = regs.pc & 0xFF;  out[7] = regs.pc >> 8;
+	// PC 0 in the first header means version 2 or 3
 	out[8] = regs.sp & 0xFF;  out[9] = regs.sp >> 8;
 	out[10] = regs.i;
 	out[11] = regs.r & 0x7F;
-	out[12] = (regs.r >> 7) | (border & 7) << 1 | 0x20;   // 0x20: compressed
+	out[12] = (regs.r >> 7) | (border & 7) << 1;
 	out[13] = regs.de & 0xFF;  out[14] = regs.de >> 8;
 	out[15] = regs.bc_ & 0xFF; out[16] = regs.bc_ >> 8;
 	out[17] = regs.de_ & 0xFF; out[18] = regs.de_ >> 8;
@@ -290,11 +299,31 @@ int ZX_SaveZ80(uint8_t *out) {
 	out[28] = regs.iff2;
 	out[29] = regs.im & 3;
 
-	len = 30 + z80_pack(&zxmem[0x4000], RAM_SIZE, &out[30]);
-	out[len++] = 0x00;  // end marker
-	out[len++] = 0xED;
-	out[len++] = 0xED;
-	out[len++] = 0x00;
+	out[30] = 54;              // version 3 extra header length
+	out[32] = regs.pc & 0xFF;  out[33] = regs.pc >> 8;
+	out[34] = 0;               // 48K
+	out[37] = 0x04;            // AY in use
+	out[38] = AY_GetSelected();
+	for(i=0; i<16; i++) {
+		out[39+i] = AY_GetReg(i);
+	}
+
+	// Each 16K page: length (0xFFFF = stored as is), page number, data
+	len = 86;
+	for(i=0; i<3; i++) {
+		n = z80_pack(&zxmem[0x4000 + i*0x4000], 0x4000, &out[len+3]);
+		if(n >= 0x4000) {
+			memcpy(&out[len+3], &zxmem[0x4000 + i*0x4000], 0x4000);
+			n = 0x4000;
+			out[len] = 0xFF;
+			out[len+1] = 0xFF;
+		} else {
+			out[len] = n & 0xFF;
+			out[len+1] = n >> 8;
+		}
+		out[len+2] = pages[i];
+		len += 3 + n;
+	}
 	return len;
 }
 

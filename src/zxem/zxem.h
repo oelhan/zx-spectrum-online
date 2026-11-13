@@ -36,7 +36,8 @@
 // Snapshot and tape loading
 #include "zxload.h"
 
-// Beeper sound
+// Beeper and AY sound
+#include "zxay.h"
 #include "zxsound.h"
 
 #define Z80_CPU_SPEED           3500000   /* In Hz. */
