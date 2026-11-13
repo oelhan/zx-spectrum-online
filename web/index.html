@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZX Spectrum</title>
+<style>
+	:root {
+		--bg: #111;
+		--fg: #ddd;
+		--muted: #888;
+	}
+	html, body {
+		margin: 0;
+		height: 100%;
+		background: var(--bg);
+		color: var(--fg);
+		font-family: system-ui, sans-serif;
+	}
+	main {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		min-height: 100%;
+		padding: 16px;
+		box-sizing: border-box;
+	}
+	canvas {
+		image-rendering: pixelated;
+		background: #000;
+		max-width: 100%;
+	}
+	#status {
+		color: var(--muted);
+		font-size: 14px;
+	}
+	button {
+		font: inherit;
+		padding: 4px 12px;
+	}
+</style>
+</head>
+<body>
+<main>
+	<canvas id="screen" width="256" height="192"></canvas>
+	<div>
+		<button id="reset">Reset</button>
+	</div>
+	<div id="status">Loading…</div>
+</main>
+<script src="zxem.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

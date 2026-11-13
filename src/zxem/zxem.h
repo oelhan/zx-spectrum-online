@@ -47,4 +47,10 @@ GLOBAL uint8_t CPU_Handle;
 // Main entry point
 int ZX_main(int argc, char *argv[]);
 
+// Used by front ends that drive the frame loop themselves (web)
+int ZX_Init(void);
+void ZX_Reset(void);
+void ZX_Frame(void);
+void ZX_End(void);
+
 #endif // include once

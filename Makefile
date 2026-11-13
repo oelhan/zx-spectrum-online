@@ -5,6 +5,10 @@
 # make SDL=0         build with the dummy (no video) backend
 # make DEBUG=1       debug build (-O0 -g)
 # make PLAT=HTML     Emscripten build (zxem.html)
+# make PLAT=WEB      Emscripten build for the website (dist/), no SDL
+# make docker-web    PLAT=WEB build inside the emscripten/emsdk image
+# make serve         serve dist/ on http://localhost:8000
+# make test-web      boot the PLAT=WEB build in Node and check the ROM starts
 # make test          build and run the CPU test suite (z80emu core)
 
 ## Config
@@ -41,13 +45,26 @@ SDLFLAGS = -s USE_SDL=$(SDL)
 OSDLIBS =
 LINKFLAGS += $(SDLFLAGS) --preload-file roms --preload-file scr --emrun
 TARGET := $(TARGET).html
+else ifeq ($(PLAT), WEB)
+CC = emcc
+CXX = em++
+AR = emar
+OBJDIR = objweb
+SDL = 0
+WEB_EXPORTS = _zx_init,_zx_reset,_zx_run_frame,_zx_framebuffer,_zx_fb_width,_zx_fb_height,_zx_key
+LINKFLAGS += -s MODULARIZE=1 -s EXPORT_NAME=createZXEM -s ENVIRONMENT=web,node \
+	-s EXPORTED_FUNCTIONS=$(WEB_EXPORTS) -s EXPORTED_RUNTIME_METHODS=HEAPU8 \
+	--embed-file roms/48k.rom@roms/48k.rom
+TARGET := dist/zxem.js
 else
 OBJDIR = obj
 endif
 
 ## OS dependent (video/input) backend
 
-ifeq ($(SDL), 1)
+ifeq ($(PLAT), WEB)
+OSD_SOURCE = src/osdep/web.c
+else ifeq ($(SDL), 1)
 OSD_SOURCE = src/osdep/sdl1.2.c
 ifneq ($(PLAT), HTML)
 SDLFLAGS = $(shell sdl-config --cflags)
@@ -103,7 +120,31 @@ $(OSDOBJ): $(OSD_SOURCE) $(HEADERS) | $(OBJDIR)
 
 # Link with the C++ driver so the C++ runtime is pulled in for z80core.
 $(TARGET): $(OBJECTS)
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) $(OSDLIBS) $(LINKFLAGS) -o $@
+
+## Website (PLAT=WEB): static page files are copied next to zxem.js/.wasm
+
+ifeq ($(PLAT), WEB)
+WEB_FILES := $(patsubst web/%,dist/%,$(wildcard web/*))
+all: $(WEB_FILES)
+
+dist/%: web/%
+	@mkdir -p dist
+	cp $< $@
+endif
+
+EMSDK_IMAGE ?= emscripten/emsdk:3.1.74
+
+docker-web:
+	docker run --rm -v $(CURDIR):/src -w /src -u $(shell id -u):$(shell id -g) \
+		$(EMSDK_IMAGE) make PLAT=WEB
+
+serve:
+	python3 -m http.server -d dist 8000
+
+test-web: dist/zxem.js
+	node tests/web/boot.cjs
 
 ## CPU test suite (exercises the z80emu core, whichever CPU zxem uses)
 
@@ -127,6 +168,6 @@ test: $(TEST_TARGET)
 	  test $$passed -ge $(KNOWN_PASSES)
 
 clean:
-	rm -rf obj objhtml $(TARGET) zxem.html zxem.js zxem.data $(TEST_TARGET) tests/zxtest.log
+	rm -rf obj objhtml objweb dist $(TARGET) zxem.html zxem.js zxem.data $(TEST_TARGET) tests/zxtest.log
 
-.PHONY: all clean test
+.PHONY: all clean test docker-web serve test-web

@@ -84,12 +84,15 @@ int      zx_load(const uint8_t *data, int len, const char *ext); // tap/sna/z80
 - [ ] Create the remote (GitHub or wherever hcode deploys from) and push
 
 ### 1. Headless WASM build that boots
-- [ ] `src/osdep/web.c` with the exported API above. Move the main loop out of `ZX_main` so
+- [x] `src/osdep/web.c` with the exported API above. Move the main loop out of `ZX_main` so
       JavaScript calls `zx_run_frame()`
-- [ ] Makefile `PLAT=WEB`: `emcc -O3 -s MODULARIZE=1 -s EXPORTED_FUNCTIONS=... -s ALLOW_MEMORY_GROWTH=0`,
+- [x] Makefile `PLAT=WEB`: `emcc -O3 -s MODULARIZE=1 -s EXPORTED_FUNCTIONS=... -s ALLOW_MEMORY_GROWTH=0`,
       ROM embedded with `--embed-file` (16 KB)
-- [ ] Minimal `web/index.html` and `app.js`: canvas, a 50 Hz accumulator on `requestAnimationFrame`
-- [ ] **Done when:** the browser shows "© 1982 Sinclair Research Ltd" at the correct speed and BASIC accepts typing
+- [x] Minimal `web/index.html` and `app.js`: canvas, a 50 Hz accumulator on `requestAnimationFrame`
+- [x] **Done when:** the browser shows "© 1982 Sinclair Research Ltd" at the correct speed and BASIC accepts typing
+
+Phase 1 notes: the framebuffer is 256x192 for now (the border arrives in phase 2).
+`make docker-web` builds without a local emsdk, and `make test-web` boots the ROM in Node.
 
 ### 2. Make the hardware behave like a Spectrum
 - [ ] Port `0xFE` read: decode on A0=0 and AND every keyboard row whose high-byte bit is 0;

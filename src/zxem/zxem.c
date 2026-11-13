@@ -90,6 +90,7 @@ int ZX_LoadROM(void) {
 	}
 
 	fread(zxmem,1,16384,f);
+	fclose(f);
 
 	return 1;
 }
@@ -108,7 +109,8 @@ void ZX_Int(void) {
 
 int next_total = 0;
 
-void mainloop(void) {
+/* Returns 1 when a whole frame has completed */
+int mainloop(void) {
 	if(!debug) {
 		total += CPU_Emulate(CPU_Handle, next_total-total);
 	} else {
@@ -120,13 +122,31 @@ void mainloop(void) {
 		ZX_Input();
 		ZX_Int();
 		ZX_Draw();
+		return 1;
 	}
+	return 0;
 }
 
-int ZX_main(int argc, char *argv[])
-{
-	int i =0;
-	
+#ifdef EMSCRIPTEN
+void emloop(void) {
+	mainloop();
+}
+#endif
+
+/* Run the emulator until the end of the current 50Hz frame */
+void ZX_Frame(void) {
+	while(!mainloop());
+}
+
+void ZX_Reset(void) {
+	CPU_Reset(CPU_Handle);
+	total = 0;
+	next_total = 0;
+	debug = 0;
+}
+
+/* Set up video, memory, ROM and CPU. Returns 0 on failure */
+int ZX_Init(void) {
 	OSD_Init();
 	ZX_KeyInit();
 	
@@ -142,9 +162,9 @@ int ZX_main(int argc, char *argv[])
 	// Create a z80 cpu instance
 	CPU_Handle = CPU_Create();
 
-	if(!zxmem || !cached) {
+	if(!zxmem || !cached || !screenbuf) {
 		printf("Failed to allocate RAM\n");
-		ZX_End();
+		return 0;
 	}
 
 	// Clear main memory
@@ -154,11 +174,26 @@ int ZX_main(int argc, char *argv[])
 	memset(cached,1,65535);
 
 	// Attempt to load spectrum ROM
-	if(!ZX_LoadROM()) {
-		ZX_End();
+	if(ZX_LoadROM()<0) {
+		return 0;
 	}
 
 	ZX_SetPalette();
+
+	ZX_Reset();
+	running = 1;
+
+	return 1;
+}
+
+int ZX_main(int argc, char *argv[])
+{
+	int i =0;
+
+	if(!ZX_Init()) {
+		ZX_End();
+		return 1;
+	}
 
 	if(argc>1) {
 		running = 1;
@@ -173,18 +208,15 @@ int ZX_main(int argc, char *argv[])
 		}
 	}
 
-	CPU_Reset(CPU_Handle);
-
-	total = 0;
+	ZX_Reset();
 	running = 1;
-	debug = 0;
 
 #ifndef EMSCRIPTEN
 	while(running) {
 		mainloop();
 	}
 #else
-	emscripten_set_main_loop(mainloop,0,1);
+	emscripten_set_main_loop(emloop,0,1);
 #endif
 	ZX_End();
 	return 0;

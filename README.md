@@ -31,6 +31,19 @@ make test       # build and run the CPU test suite
 
 Run `./zxem` from the repository root (it loads `roms/48k.rom`).
 
+## Website build
+
+The browser version builds with Emscripten into `dist/` (no SDL):
+
+```
+make docker-web       # build in the emscripten/emsdk Docker image (no local emsdk needed)
+make PLAT=WEB         # or build with a local emcc
+make serve            # http://localhost:8000
+make test-web         # boot the ROM in Node and check the copyright message appears
+```
+
+See [PLAN.md](PLAN.md) for the roadmap.
+
 ## TODO list
 - [x] Working Z80 CPU Core  
 - [x] Screen renderer (pixels, ink, paper, bright, flash)

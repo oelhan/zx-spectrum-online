@@ -7,3 +7,5 @@ zxem.data
 maketables
 tests/zxtest
 tests/zxtest.log
+dist
+objweb
