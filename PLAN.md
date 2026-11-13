@@ -117,7 +117,7 @@ Phase 2 notes:
 - [x] `.tap` with a ROM trap on `LD-BYTES` (`0x0556`) for instant loading. Auto-type `LOAD ""`
 - [x] `.tzx` (standard-speed blocks through the same trap). Turbo loaders can come later
 - [x] JavaScript: file picker, drag-and-drop, `?game=<url>` query parameter
-- [ ] **Done when:** a known freeware TAP, SNA and Z80 each load and are playable
+- [x] **Done when:** a known freeware TAP, SNA and Z80 each load and are playable
 
 Phase 3 notes:
 - `src/zxem/zxload.c` handles snapshots and the dispatcher. `src/zxem/zxtape.c` handles tapes.
@@ -131,8 +131,7 @@ Phase 3 notes:
 - The tape trap needs z80core, because z80emu doesn't expose the live PC.
 - `tests/web/loaders.cjs` builds its own TAP, TZX, SNA and Z80 (v1 and v3) files and
   checks they run. With a directory argument it also writes them out for manual tests.
-- Still to do: try real game files. The test images were written from the
-  same reading of the formats as the loaders.
+- Real games were tried in the browser by hand on 2026-11-13 and load and play.
 
 ### 4. Sound
 - [ ] Record beeper level changes against T-state timestamps during a frame, then resample to 44.1/48 kHz
