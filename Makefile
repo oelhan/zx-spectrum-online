@@ -133,13 +133,14 @@ dist/%: web/%
 	@mkdir -p dist
 	cp $< $@
 
-## Game library: games/* except the README goes to dist/games/
-GAME_FILES := $(patsubst games/%,dist/games/%,$(filter-out games/README.md,$(wildcard games/*)))
-all: $(GAME_FILES)
+## Game library: games/* except the README goes to dist/games/. Copied by
+## the shell on every build, since game file names often contain spaces,
+## which make can't handle in targets.
+all: dist-games
 
-dist/games/%: games/%
-	@mkdir -p dist/games
-	cp $< $@
+dist-games:
+	@rm -rf dist/games && mkdir -p dist/games
+	find games -maxdepth 1 -type f ! -name README.md -exec cp -p {} dist/games/ \;
 endif
 
 EMSDK_IMAGE ?= emscripten/emsdk:3.1.74
@@ -186,4 +187,4 @@ test: $(TEST_TARGET)
 clean:
 	rm -rf obj objhtml objweb dist $(TARGET) zxem.html zxem.js zxem.data $(TEST_TARGET) tests/zxtest.log
 
-.PHONY: all clean test docker-web serve test-web
+.PHONY: all clean test docker-web serve test-web dist-games

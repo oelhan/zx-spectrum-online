@@ -1,3 +1,11 @@
 {
-  "games": []
+  "start": "BigThings.tap",
+  "games": [
+    {
+      "title": "Big Things",
+      "author": "Speccy.pl",
+      "file": "BigThings.tap",
+      "controls": "None, it's a demo. Its music needs the AY sound chip, which isn't emulated yet."
+    }
+  ]
 }
