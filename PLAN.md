@@ -25,7 +25,6 @@ Things that block playing games:
 | No Kempston joystick (port `0x1F`) | `zxio.c` | Most games expect a joystick |
 | Speed is tied to `emscripten_set_main_loop(..., 0, ...)` | `zxem.c` | Runs at the display refresh rate. That is 60 Hz instead of 50 Hz, so games run 20% fast (or faster on 120 Hz screens) |
 | No audio backend | — | No sound |
-| No LICENSE file in the repo | — | Must be sorted out before hosting publicly (see Risks) |
 
 ## Architecture
 
@@ -79,7 +78,7 @@ int      zx_load(const uint8_t *data, int len, const char *ext); // tap/sna/z80
 
 ### 0. Repo housekeeping
 - [x] New local repo `zxspectrum-web`, upstream history kept, `upstream` remote
-- [ ] Settle licensing (see Risks), then add LICENSE and NOTICE (credit MikeDX, Adrian Brown, Lin Ke-Fong)
+- [ ] Add a NOTICE file crediting MikeDX, Adrian Brown and Lin Ke-Fong (licensing: see Risks)
 - [ ] Remove things the web project doesn't need: `Win32/`, `Z80Emu_VS2015/`, `Makefile.nmake`,
       SDL submodules, `mz80` (licence restricts commercial use)
 - [ ] Create the remote (GitHub or wherever hcode deploys from) and push
@@ -142,10 +141,11 @@ int      zx_load(const uint8_t *data, int len, const char *ext); // tap/sna/z80
 - Manual browser checklist: Chrome, Firefox, Safari, and mobile Safari/Chrome.
 
 ## Risks and open questions
-1. **Licensing.** Upstream has no LICENSE file. The README says "free open source".
-   `z80emu` says "do whatever you want". `mz80` is free for freeware with credit only.
-   The `z80core` licence is unstated. Ask MikeDX (and Adrian Brown) to confirm a licence,
-   such as MIT or GPL, before hosting publicly.
+1. **Licensing (decided: proceed).** Upstream's README describes ZXEMU as "free open
+   source", and we're relying on that. Keep the credits for MikeDX, Adrian Brown (z80core)
+   and Lin Ke-Fong (z80emu) in a NOTICE file and on the site. The repo still has no
+   LICENSE file, so optionally open a GitHub issue asking upstream to add one.
+   `mz80` gets removed, since its licence restricts commercial use.
 2. **Game copyright.** Amstrad lets emulators distribute the 48K ROM. Games are a
    different matter. Host only titles whose rights holders allow distribution (ZXDB/Spectrum
    Computing marks these) or homebrew titles with permission. Let users load their own files locally.
