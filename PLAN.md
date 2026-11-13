@@ -197,12 +197,18 @@ Phase 5 notes:
       stage 2 `nginxinc/nginx-unprivileged:1.27-alpine` serves `dist/` on `$PORT` (default 8080) as non-root
 - [x] nginx config: `application/wasm` MIME type, gzip, `/healthz`
 - [x] CI: build, `make test`, a headless boot test, and build the image on every push
-- [ ] Deploy to an hcode container, then point a domain at it with TLS
+- [x] Deploy to an hcode container (running since 2026-11-13)
+- [ ] Point our own domain at it
 
 Phase 6 notes:
-- hcode builds with Railpack by default, which can't detect this project. Set the project's
-  **Build mode** to **Dockerfile** (Settings > Build configuration > Build type), with path
-  `./Dockerfile` and runtime port 8080. Leave the start command empty, so the image's own CMD runs.
+- hcode builds with Railpack by default, which can't detect this project. Settings that work:
+  - **Build mode:** Dockerfile (Settings > Build configuration > Build type)
+  - **Dockerfile path:** `./Dockerfile`
+  - **Runtime port:** 3000 (any port works, since nginx listens on `$PORT`)
+  - **Start command:** empty
+- An old start command (`python3 -m http.server ...`) made the container exit with code 127,
+  because the nginx image has no Python. Clearing the start command fixed it. If a start
+  command is ever required, use `/docker-entrypoint.sh nginx -g "daemon off;"`.
 - hcode sets `PORT` to the runtime port. nginx's template step writes it into the config on
   start (`docker/nginx.conf.template`).
 - No file names are versioned, so everything is served with `Cache-Control: no-cache`.
