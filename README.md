@@ -90,3 +90,9 @@ See [PLAN.md](PLAN.md) for the roadmap.
 - [ ] TAP Support  
 
 Please help to test and develop this project!
+
+## Licence
+
+The work added in this repository is under the [MIT licence](LICENSE). It builds on
+ZXEMU by MikeDX, the z80core and z80emu CPU cores, and the Sinclair 48K ROM, which keep
+their own terms. See [NOTICE](NOTICE) for what is covered and who wrote what.
